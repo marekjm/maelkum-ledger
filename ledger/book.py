@@ -730,11 +730,11 @@ class Book:
         screen.reset()
 
         Book.report_this_year(book, column = 0)
+        Book.report_total(book, column = 1)
         print(screen.str())
         screen.reset()
 
         # FIXME Also, maybe add a report of destinations that
         # receive the most money from us? This could be useful.
 
-        # Book.report_total(book)
         Book.report_balances(book)
