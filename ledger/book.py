@@ -33,8 +33,6 @@ ACCOUNT_ASSET_T = 'asset'
 ACCOUNT_LIABILITY_T = 'liability'
 ACCOUNT_EQUITY_T = 'equity'
 
-NOT_IN_BUDGET = 'not_in_budget'
-
 
 class Book:
     @staticmethod
@@ -250,35 +248,6 @@ class Book:
             revenues
         )))
 
-        # Sometimes we need to avoid including some expenses in budget
-        # calculations. For example, company-related private expenses.
-        # Let's say that you are going to a conference, but the company
-        # policy states that the costs can only be refunded after you
-        # present receipts, tickets, etc. So even though the company will
-        # pay you have to spend your own money first...
-        #
-        # If the conference cost is particularly high this can have a
-        # negative impact on your budget. To prevent such an expense from
-        # being counted against your budget use the "not in budget" tag.
-        #
-        # Total expenses counted against budget must *always* be less or equal
-        # to the overall total expenses. As "budgeted" expenses may *exclude*
-        # some transactions, thus only bringing the amount lower.
-        #
-        # The same with revenues.
-        total_expenses_budgeted = sum(
-            map(lambda each: each['value']['amount'],
-            filter(lambda each: (NOT_IN_BUDGET not in each.get('tags', ())),
-            filter(lambda each: each['value']['currency'] == DEFAULT_CURRENCY,
-            expenses
-        ))))
-        total_revenues_budgeted = sum(
-            map(lambda each: each['value']['amount'],
-            filter(lambda each: (NOT_IN_BUDGET not in each.get('tags', ())),
-            filter(lambda each: each['value']['currency'] == DEFAULT_CURRENCY,
-            revenues
-        ))))
-
         spending_target = book.get('budgets', {}).get('_target')
         if spending_target is not None:
             last_day_of_this_month = None
@@ -296,14 +265,12 @@ class Book:
                 )
             last_day_of_this_month = last_day_of_this_month - datetime.timedelta(days = 1)
             days_left_in_this_month = (last_day_of_this_month - today).days
-
             available_budgeted_funds = decimal.Decimal()
-
             if spending_target[0] == '%':
                 target_percentage = (spending_target[1] / 100)
-                available_budgeted_funds = (total_revenues * target_percentage) - abs(total_expenses_budgeted)
+                available_budgeted_funds = (total_revenues * target_percentage) - abs(total_expenses)
             elif spending_target[0] == '$':
-                available_budgeted_funds = spending_target[1] - total_expenses_budgeted
+                available_budgeted_funds = spending_target[1] - total_expenses
             available_budgeted_funds_per_day = (available_budgeted_funds / days_left_in_this_month)
             Book.screen.print(column = column, text = '  Daily expense cap to meet budget: {} {}'.format(
                 colorise_if_possible(
@@ -312,11 +279,6 @@ class Book:
                 ),
                 DEFAULT_CURRENCY,
             ))
-            if total_expenses != total_expenses_budgeted:
-                Book.screen.print(column = column, text = '  Expenses not counted against budget: {} {}'.format(
-                    '{:.2f}'.format(abs(total_expenses - total_expenses_budgeted)),
-                    DEFAULT_CURRENCY,
-                ))
 
     @staticmethod
     def report_last_month(book, column):
