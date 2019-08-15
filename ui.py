@@ -276,6 +276,7 @@ class Parser:
                         'source': source_account,
                         'destination': dest_account,
                         'value': value,
+                        'tags': [],
                     })
                 elif tx_kind == TX_REVENUE_T:
                     source_account = list(filter(
@@ -322,6 +323,7 @@ class Parser:
                         'source': source_account,
                         'destination': dest_account,
                         'value': value,
+                        'tags': [],
                     })
                 elif tx_kind == TX_TRANSFER_T:
                     source_account = None
@@ -398,6 +400,7 @@ class Parser:
                         'source': source_account,
                         'destination': dest_account,
                         'value': value,
+                        'tags': [],
                     })
                     if source_currency != dest_currency:
                         rate = list(
@@ -458,7 +461,7 @@ class Parser:
                             lambda a: a.strip(),
                             each[0].split(':', 1)[1].split(',')
                         )))
-                        book_contents['transactions'][-1]['tags'] = tags
+                        book_contents['transactions'][-1]['tags'].extend(tags)
 
         for k, v in configuration.items():
             if k == 'budget':
