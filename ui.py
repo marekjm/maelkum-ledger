@@ -462,6 +462,8 @@ class Parser:
                             each[0].split(':', 1)[1].split(',')
                         )))
                         book_contents['transactions'][-1]['tags'].extend(tags)
+                    elif each[0] == ledger.book.NOT_IN_BUDGET:
+                        book_contents['transactions'][-1]['tags'].append(ledger.book.NOT_IN_BUDGET)
 
         for k, v in configuration.items():
             if k == 'budget':
