@@ -33,6 +33,14 @@ DISPLAY_ALL_IMBALANCES = False
 ACCOUNT_ASSET_T = 'asset'
 ACCOUNT_LIABILITY_T = 'liability'
 ACCOUNT_EQUITY_T = 'equity'
+ACCOUNT_T = (
+    ACCOUNT_ASSET_T,
+    ACCOUNT_LIABILITY_T,
+    ACCOUNT_EQUITY_T,
+)
+def is_own_account(a):
+    mx = lambda k: a.startswith('{}/'.format(k))
+    return any(map(mx, ACCOUNT_T))
 
 
 class Book:
@@ -478,14 +486,12 @@ class Book:
                 book['accounts'][account_kind][account_id]['balance'] += each['value']['amount']
             elif each['type'] == 'transfer':
                 source = each['source']
-                if not (source.startswith('asset/') or source.startswith('liability/')
-                        or source.startswith('equity/')):
+                if not is_own_account(source):
                     continue
                 src_account_kind, src_account_id = source.split('/')
 
                 destination = each['destination']
-                if not (destination.startswith('asset/') or destination.startswith('liability/')
-                        or destination.startswith('equity/')):
+                if not is_own_account(destination):
                     continue
                 dst_account_kind, dst_account_id = destination.split('/')
 
