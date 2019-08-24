@@ -82,7 +82,7 @@ class Parser:
     @staticmethod
     def parse(lines, convert = decimal.Decimal):
         book_contents = {
-            'accounts': { 'asset': {}, 'liability': {}, 'equity': {} },
+            'accounts': { 'asset': {}, 'liability': {}, 'equity': {}, 'adhoc': {}, },
             'transactions': [],
             'patterns': [],
         }
@@ -434,6 +434,29 @@ class Parser:
                             ))
 
                         book_contents['transactions'][-1]['rate'] = rate
+
+                    if source_account.startswith('adhoc/'):
+                        kind, name = source_account.split('/')
+                        book_contents['accounts'][kind][name] = {
+                            'opened': Parser.parse_timestamp(head[1]),
+                            'balance': decimal.Decimal('0.00'),
+                            'currency': source_currency,
+                            'overview': True,
+                            'only_if_negative': False,
+                            'only_if_positive': False,
+                            'main': False,
+                        }
+                    if dest_account.startswith('adhoc/'):
+                        kind, name = dest_account.split('/')
+                        book_contents['accounts'][kind][name] = {
+                            'opened': Parser.parse_timestamp(head[1]),
+                            'balance': decimal.Decimal('0.00'),
+                            'currency': dest_currency,
+                            'overview': True,
+                            'only_if_negative': False,
+                            'only_if_positive': False,
+                            'main': False,
+                        }
 
                 book_contents['transactions'][-1]['timestamp'] = Parser.parse_timestamp(head[1])
 

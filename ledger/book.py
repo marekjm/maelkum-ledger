@@ -33,10 +33,12 @@ DISPLAY_ALL_IMBALANCES = False
 ACCOUNT_ASSET_T = 'asset'
 ACCOUNT_LIABILITY_T = 'liability'
 ACCOUNT_EQUITY_T = 'equity'
+ACCOUNT_ADHOC_T = 'adhoc'
 ACCOUNT_T = (
     ACCOUNT_ASSET_T,
     ACCOUNT_LIABILITY_T,
     ACCOUNT_EQUITY_T,
+    ACCOUNT_ADHOC_T,
 )
 def is_own_account(a):
     mx = lambda k: a.startswith('{}/'.format(k))
@@ -412,6 +414,8 @@ class Book:
                 continue
             if only_if_positive and balance <= 0:
                 continue
+            if kind == ACCOUNT_ADHOC_T and balance == 0:
+                continue
 
             message = '  {{:{}}}: {{}} {{}}'.format(key_length, value_length).format(
                 k,
@@ -456,6 +460,10 @@ class Book:
     @staticmethod
     def report_equity_balance(book):
         Book.report_balance_impl(book, ACCOUNT_EQUITY_T)
+
+    @staticmethod
+    def report_adhoc_balance(book):
+        Book.report_balance_impl(book, ACCOUNT_ADHOC_T)
 
     @staticmethod
     def calculate_balances(book):
@@ -721,6 +729,7 @@ class Book:
         Book.report_asset_balance(book)
         Book.report_liability_balance(book)
         Book.report_equity_balance(book)
+        Book.report_adhoc_balance(book)
 
     @staticmethod
     def report(screen, book):
