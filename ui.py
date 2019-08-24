@@ -165,12 +165,15 @@ class Parser:
 
                 is_overview = False
                 only_if_negative = False
+                only_if_positive = False
                 is_main = False
                 for x in extra:
                     if x[0] == 'overview':
                         is_overview = True
                     elif x[0] == 'only_if_negative':
                         only_if_negative = True
+                    elif x[0] == 'only_if_positive':
+                        only_if_positive = True
                     elif x[0] == 'main':
                         is_main = True
 
@@ -186,6 +189,7 @@ class Parser:
                     'currency': account_currency,
                     'overview': is_overview,
                     'only_if_negative': only_if_negative,
+                    'only_if_positive': only_if_positive,
                     'main': is_main,
                 }
 

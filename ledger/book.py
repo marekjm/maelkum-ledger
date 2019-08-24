@@ -398,8 +398,11 @@ class Book:
                 continue
 
             only_if_negative = v.get('only_if_negative', False)
+            only_if_positive = v.get('only_if_positive', False)
             balance = v['balance']
             if only_if_negative and balance >= 0:
+                continue
+            if only_if_positive and balance <= 0:
                 continue
 
             message = '  {{:{}}}: {{}} {{}}'.format(key_length, value_length).format(
