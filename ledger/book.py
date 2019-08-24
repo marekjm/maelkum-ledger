@@ -27,6 +27,7 @@ DEFAULT_CURRENCY   = 'PLN'
 SPREAD             = decimal.Decimal('0.88742')
 ALLOWED_CONVERSION_DIFFERENCE = decimal.Decimal('0.005')
 
+DISPLAY_IMBALANCES = False
 DISPLAY_ALL_IMBALANCES = False
 
 ACCOUNT_ASSET_T = 'asset'
@@ -551,13 +552,14 @@ class Book:
                         , THIS_MONTH_FORMAT
                     )
                     if (recorded != expected) and (each['timestamp'] >= this_month or DISPLAY_ALL_IMBALANCES):
-                        print('  {}: {:.2f} {} not accounted for on {} as of {}'.format(
-                            colorise_if_possible(COLOR_WARNING, 'notice'),
-                            (recorded - expected),
-                            book['accounts'][account_kind][account_id]['currency'],
-                            of,
-                            each['timestamp'],
-                        ))
+                        if DISPLAY_IMBALANCES:
+                            print('  {}: {:.2f} {} not accounted for on {} as of {}'.format(
+                                colorise_if_possible(COLOR_WARNING, 'notice'),
+                                (recorded - expected),
+                                book['accounts'][account_kind][account_id]['currency'],
+                                of,
+                                each['timestamp'],
+                            ))
                     book['accounts'][account_kind][account_id]['balance'] = expected
                 else:
                     recorded = book['accounts'][account_kind][account_id]['value']
