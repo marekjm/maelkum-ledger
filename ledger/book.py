@@ -319,11 +319,13 @@ class Book:
 
     @staticmethod
     def report_total(book, column):
-        first = Book.first_recorded_transaction(book)['timestamp']
         today = datetime.datetime.strptime(
             datetime.datetime.now().strftime(TIMESTAMP_ZERO_FORMAT),
             TIMESTAMP_FORMAT,
         )
+        first = today
+        if book['transactions']:
+            first = Book.first_recorded_transaction(book)['timestamp']
         Book.report_period_impl(book, first, today, 'All time', column, {
             'include_percentage': True,
         })
@@ -735,24 +737,31 @@ class Book:
     def report(screen, book):
         Book.screen = screen
 
-        Book.report_today(book, column = 0)
-        Book.report_yesterday(book, column = 1)
-        print(screen.str())
-        screen.reset()
+        if not Book.account_names(book):
+            print('No accounts.')
+            return
 
-        Book.report_last_7_days(book, column = 0)
-        print(screen.str())
-        screen.reset()
+        if book['transactions']:
+            Book.report_today(book, column = 0)
+            Book.report_yesterday(book, column = 1)
+            print(screen.str())
+            screen.reset()
 
-        Book.report_this_month(book, column = 0)
-        Book.report_last_month(book, column = 1)
-        print(screen.str())
-        screen.reset()
+            Book.report_last_7_days(book, column = 0)
+            print(screen.str())
+            screen.reset()
 
-        Book.report_this_year(book, column = 0)
-        Book.report_total(book, column = 1)
-        print(screen.str())
-        screen.reset()
+            Book.report_this_month(book, column = 0)
+            Book.report_last_month(book, column = 1)
+            print(screen.str())
+            screen.reset()
+
+            Book.report_this_year(book, column = 0)
+            Book.report_total(book, column = 1)
+            print(screen.str())
+            screen.reset()
+        else:
+            print('No transactions.')
 
         # FIXME Also, maybe add a report of destinations that
         # receive the most money from us? This could be useful.
