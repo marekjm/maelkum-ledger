@@ -25,6 +25,9 @@ import ledger.book
 
 OWN_ACCOUNT_T = 0
 EXT_ACCOUNT_T = 1
+def is_own_account(a):
+    mx = lambda k: a.startswith('{}/'.format(k))
+    return any(map(mx, ledger.book.ACCOUNT_T))
 
 TX_TRANSFER_T = 'tx'
 TX_EXPENSE_T = 'ex'
@@ -48,28 +51,6 @@ ACCEPTED_CURRENCIES = {
     'USD',
 }
 
-################################################################################
-# BEGIN Taken from ledger/book.py
-#
-TIMESTAMP_FORMAT      = '%Y-%m-%dT%H:%M'
-TIMESTAMP_ZERO_FORMAT = '%Y-%m-%dT00:00'
-DAYSTAMP_FORMAT       = '%Y-%m-%d'
-THIS_MONTH_FORMAT     = '%Y-%m-01T00:00'
-THIS_YEAR_FORMAT      = '%Y-01-01T00:00'
-
-DEFAULT_CURRENCY   = 'PLN'
-SPREAD             = decimal.Decimal('0.88742')
-ALLOWED_CONVERSION_DIFFERENCE = decimal.Decimal('0.005')
-
-DISPLAY_ALL_IMBALANCES = False
-
-ACCOUNT_ASSET_T = 'asset'
-ACCOUNT_LIABILITY_T = 'liability'
-ACCOUNT_EQUITY_T = 'equity'
-#
-# END Taken from ledger/book.py
-################################################################################
-
 
 class Parser:
     @staticmethod
@@ -92,16 +73,16 @@ class Parser:
     @staticmethod
     def parse_timestamp(s):
         try:
-            return datetime.datetime.strptime(s, TIMESTAMP_FORMAT)
+            return datetime.datetime.strptime(s, ledger.book.TIMESTAMP_FORMAT)
         except ValueError:
-            return datetime.datetime.strptime(s, DAYSTAMP_FORMAT)
+            return datetime.datetime.strptime(s, ledger.book.DAYSTAMP_FORMAT)
         else:
             raise
 
     @staticmethod
     def parse(lines, convert = decimal.Decimal):
         book_contents = {
-            'accounts': { 'asset': {}, 'liability': {}, 'equity': {} },
+            'accounts': { 'asset': {}, 'liability': {}, 'equity': {}, 'adhoc': {}, },
             'transactions': [],
             'patterns': [],
         }
@@ -165,12 +146,15 @@ class Parser:
 
                 is_overview = False
                 only_if_negative = False
+                only_if_positive = False
                 is_main = False
                 for x in extra:
                     if x[0] == 'overview':
                         is_overview = True
                     elif x[0] == 'only_if_negative':
                         only_if_negative = True
+                    elif x[0] == 'only_if_positive':
+                        only_if_positive = True
                     elif x[0] == 'main':
                         is_main = True
 
@@ -186,6 +170,7 @@ class Parser:
                     'currency': account_currency,
                     'overview': is_overview,
                     'only_if_negative': only_if_negative,
+                    'only_if_positive': only_if_positive,
                     'main': is_main,
                 }
 
@@ -203,7 +188,7 @@ class Parser:
                 # print('=>', head)
                 accounts = [
                     ((OWN_ACCOUNT_T, a.rsplit(maxsplit = 2),)
-                     if a.startswith('asset/') or a.startswith('liability/') or a.startswith('equity/')
+                     if is_own_account(a)
                      else (EXT_ACCOUNT_T, a,))
                     for a
                     in map(lambda x: x[0], body)
@@ -223,7 +208,7 @@ class Parser:
                 # print('=>', head)
                 accounts = [
                     ((OWN_ACCOUNT_T, a.rsplit(maxsplit = 2),)
-                     if a.startswith('asset/') or a.startswith('liability/') or a.startswith('equity/')
+                     if is_own_account(a)
                      else (EXT_ACCOUNT_T, a,))
                     for a
                     in map(lambda x: x[0], body)
@@ -426,7 +411,7 @@ class Parser:
 
                         multiplier = (100 if value['dst']['currency'] == 'JPY' else 1)
                         op = None
-                        if value['src']['currency'] == DEFAULT_CURRENCY:
+                        if value['src']['currency'] == ledger.book.DEFAULT_CURRENCY:
                             op = lambda a, b: a / b
                         else:
                             op = lambda a, b: a * b
@@ -435,7 +420,7 @@ class Parser:
                         ok = ledger.util.math.diff_less_than(
                             src_value_converted,
                             dst_value_converted,
-                            ALLOWED_CONVERSION_DIFFERENCE,
+                            ledger.book.ALLOWED_CONVERSION_DIFFERENCE,
                         )
                         if not ok:
                             raise Exception(
@@ -452,6 +437,29 @@ class Parser:
                             ))
 
                         book_contents['transactions'][-1]['rate'] = rate
+
+                    if source_account.startswith('adhoc/'):
+                        kind, name = source_account.split('/')
+                        book_contents['accounts'][kind][name] = {
+                            'opened': Parser.parse_timestamp(head[1]),
+                            'balance': decimal.Decimal('0.00'),
+                            'currency': source_currency,
+                            'overview': True,
+                            'only_if_negative': False,
+                            'only_if_positive': False,
+                            'main': False,
+                        }
+                    if dest_account.startswith('adhoc/'):
+                        kind, name = dest_account.split('/')
+                        book_contents['accounts'][kind][name] = {
+                            'opened': Parser.parse_timestamp(head[1]),
+                            'balance': decimal.Decimal('0.00'),
+                            'currency': dest_currency,
+                            'overview': True,
+                            'only_if_negative': False,
+                            'only_if_positive': False,
+                            'main': False,
+                        }
 
                 book_contents['transactions'][-1]['timestamp'] = Parser.parse_timestamp(head[1])
 

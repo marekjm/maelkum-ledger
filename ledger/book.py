@@ -27,11 +27,22 @@ DEFAULT_CURRENCY   = 'PLN'
 SPREAD             = decimal.Decimal('0.88742')
 ALLOWED_CONVERSION_DIFFERENCE = decimal.Decimal('0.005')
 
+DISPLAY_IMBALANCES = True
 DISPLAY_ALL_IMBALANCES = False
 
 ACCOUNT_ASSET_T = 'asset'
 ACCOUNT_LIABILITY_T = 'liability'
 ACCOUNT_EQUITY_T = 'equity'
+ACCOUNT_ADHOC_T = 'adhoc'
+ACCOUNT_T = (
+    ACCOUNT_ASSET_T,
+    ACCOUNT_LIABILITY_T,
+    ACCOUNT_EQUITY_T,
+    ACCOUNT_ADHOC_T,
+)
+def is_own_account(a):
+    mx = lambda k: a.startswith('{}/'.format(k))
+    return any(map(mx, ACCOUNT_T))
 
 
 class Book:
@@ -308,11 +319,13 @@ class Book:
 
     @staticmethod
     def report_total(book, column):
-        first = Book.first_recorded_transaction(book)['timestamp']
         today = datetime.datetime.strptime(
             datetime.datetime.now().strftime(TIMESTAMP_ZERO_FORMAT),
             TIMESTAMP_FORMAT,
         )
+        first = today
+        if book['transactions']:
+            first = Book.first_recorded_transaction(book)['timestamp']
         Book.report_period_impl(book, first, today, 'All time', column, {
             'include_percentage': True,
         })
@@ -397,8 +410,13 @@ class Book:
                 continue
 
             only_if_negative = v.get('only_if_negative', False)
+            only_if_positive = v.get('only_if_positive', False)
             balance = v['balance']
             if only_if_negative and balance >= 0:
+                continue
+            if only_if_positive and balance <= 0:
+                continue
+            if kind == ACCOUNT_ADHOC_T and balance == 0:
                 continue
 
             message = '  {{:{}}}: {{}} {{}}'.format(key_length, value_length).format(
@@ -446,6 +464,10 @@ class Book:
         Book.report_balance_impl(book, ACCOUNT_EQUITY_T)
 
     @staticmethod
+    def report_adhoc_balance(book):
+        Book.report_balance_impl(book, ACCOUNT_ADHOC_T)
+
+    @staticmethod
     def calculate_balances(book):
         this_point_in_time = datetime.datetime.now()
 
@@ -474,14 +496,12 @@ class Book:
                 book['accounts'][account_kind][account_id]['balance'] += each['value']['amount']
             elif each['type'] == 'transfer':
                 source = each['source']
-                if not (source.startswith('asset/') or source.startswith('liability/')
-                        or source.startswith('equity/')):
+                if not is_own_account(source):
                     continue
                 src_account_kind, src_account_id = source.split('/')
 
                 destination = each['destination']
-                if not (destination.startswith('asset/') or destination.startswith('liability/')
-                        or destination.startswith('equity/')):
+                if not is_own_account(destination):
                     continue
                 dst_account_kind, dst_account_id = destination.split('/')
 
@@ -551,13 +571,14 @@ class Book:
                         , THIS_MONTH_FORMAT
                     )
                     if (recorded != expected) and (each['timestamp'] >= this_month or DISPLAY_ALL_IMBALANCES):
-                        print('  {}: {:.2f} {} not accounted for on {} as of {}'.format(
-                            colorise_if_possible(COLOR_WARNING, 'notice'),
-                            (recorded - expected),
-                            book['accounts'][account_kind][account_id]['currency'],
-                            of,
-                            each['timestamp'],
-                        ))
+                        if DISPLAY_IMBALANCES:
+                            print('  {}: {:.2f} {} not accounted for on {} as of {}'.format(
+                                colorise_if_possible(COLOR_WARNING, 'notice'),
+                                (recorded - expected),
+                                book['accounts'][account_kind][account_id]['currency'],
+                                of,
+                                each['timestamp'],
+                            ))
                     book['accounts'][account_kind][account_id]['balance'] = expected
                 else:
                     recorded = book['accounts'][account_kind][account_id]['value']
@@ -710,29 +731,37 @@ class Book:
         Book.report_asset_balance(book)
         Book.report_liability_balance(book)
         Book.report_equity_balance(book)
+        Book.report_adhoc_balance(book)
 
     @staticmethod
     def report(screen, book):
         Book.screen = screen
 
-        Book.report_today(book, column = 0)
-        Book.report_yesterday(book, column = 1)
-        print(screen.str())
-        screen.reset()
+        if not Book.account_names(book):
+            print('No accounts.')
+            return
 
-        Book.report_last_7_days(book, column = 0)
-        print(screen.str())
-        screen.reset()
+        if book['transactions']:
+            Book.report_today(book, column = 0)
+            Book.report_yesterday(book, column = 1)
+            print(screen.str())
+            screen.reset()
 
-        Book.report_this_month(book, column = 0)
-        Book.report_last_month(book, column = 1)
-        print(screen.str())
-        screen.reset()
+            Book.report_last_7_days(book, column = 0)
+            print(screen.str())
+            screen.reset()
 
-        Book.report_this_year(book, column = 0)
-        Book.report_total(book, column = 1)
-        print(screen.str())
-        screen.reset()
+            Book.report_this_month(book, column = 0)
+            Book.report_last_month(book, column = 1)
+            print(screen.str())
+            screen.reset()
+
+            Book.report_this_year(book, column = 0)
+            Book.report_total(book, column = 1)
+            print(screen.str())
+            screen.reset()
+        else:
+            print('No transactions.')
 
         # FIXME Also, maybe add a report of destinations that
         # receive the most money from us? This could be useful.
