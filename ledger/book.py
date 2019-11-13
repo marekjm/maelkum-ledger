@@ -698,8 +698,6 @@ class Book:
 
     @staticmethod
     def report_balances(book):
-        book = Book.calculate_balances(book)
-
         total_balance, foreign_currencies, is_estimated = Book.calculate_total_balance(book)
         m = '{} on all {} accounts: {} {}'.format(
             colorise_if_possible(COLOR_PERIOD_NAME, 'Balance'),
@@ -740,6 +738,8 @@ class Book:
         if not Book.account_names(book):
             print('No accounts.')
             return
+
+        book = Book.calculate_balances(book)
 
         if book['transactions']:
             Book.report_today(book, column = 0)
