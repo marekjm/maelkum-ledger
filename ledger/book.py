@@ -228,8 +228,9 @@ class Book:
             filter(lambda each: each['value']['currency'] == DEFAULT_CURRENCY,
             expenses
         ))))
+        daily_average = (total_expenses / (diff.days or 1))
         Book.screen.print(column = column, text = '  Average daily expense is {:.2f} {}.'.format(
-            (total_expenses / (diff.days or 1)),
+            daily_average,
             DEFAULT_CURRENCY,
         ))
 
@@ -288,7 +289,7 @@ class Book:
                     day = 1,
                 )
             last_day_of_this_month = last_day_of_this_month - datetime.timedelta(days = 1)
-            days_left_in_this_month = (last_day_of_this_month - today).days
+            days_left_in_this_month = (last_day_of_this_month - today).days + 1
             available_budgeted_funds = decimal.Decimal()
             if spending_target[0] == '%':
                 target_percentage = (spending_target[1] / 100)
