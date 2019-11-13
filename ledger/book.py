@@ -54,7 +54,10 @@ class Book:
             p('  No transactions.')
             return
 
-        total_expenses = abs(sum(map(lambda each: each['value']['amount'], expenses)))
+        total_expenses = abs(sum(map(lambda each:
+            (each['value'].get('in_default_currency') or each['value']['amount']),
+            expenses
+        )))
         total_revenues = sum(map(lambda each: each['value']['amount'], revenues))
         total_balance = (total_revenues - total_expenses)
         padding = ('' if total_balance >= 0 else ' ')
@@ -138,6 +141,11 @@ class Book:
                 continue
 
             if each['type'] == 'expense':
+                if each['value']['currency'] != DEFAULT_CURRENCY:
+                    c = each['value']['currency']
+                    r = book['currency_basket'][(c, DEFAULT_CURRENCY)]['rates']['buy']['weighted']
+                    in_default_currency = (each['value']['amount'] * r)
+                    each['value']['in_default_currency'] = in_default_currency
                 expenses.append(each)
             elif each['type'] == 'revenue':
                 revenues.append(each)
@@ -175,6 +183,11 @@ class Book:
                 continue
 
             if each['type'] == 'expense':
+                if each['value']['currency'] != DEFAULT_CURRENCY:
+                    c = each['value']['currency']
+                    r = book['currency_basket'][(c, DEFAULT_CURRENCY)]['rates']['buy']['weighted']
+                    in_default_currency = (each['value']['amount'] * r)
+                    each['value']['in_default_currency'] = in_default_currency
                 expenses.append(each)
             elif each['type'] == 'revenue':
                 revenues.append(each)
@@ -658,6 +671,19 @@ class Book:
             }
 
         for name, account in book['accounts']['asset'].items():
+            if account['currency'] == DEFAULT_CURRENCY:
+                continue
+            account['in_default_currency'] = decimal.Decimal()
+
+            key = (account['currency'], DEFAULT_CURRENCY)
+            if key not in book['currency_basket']:
+                continue
+            rate = book['currency_basket'][key]['rates']['buy']['weighted']
+            per_amount = (100 if account['currency'] == 'JPY' else 1)
+            in_default_currency = account['balance'] * (rate / per_amount)
+            account['in_default_currency'] = in_default_currency
+
+        for name, account in book['accounts']['liability'].items():
             if account['currency'] == DEFAULT_CURRENCY:
                 continue
             account['in_default_currency'] = decimal.Decimal()
