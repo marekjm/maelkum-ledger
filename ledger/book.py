@@ -474,10 +474,11 @@ class Book:
                     rate = book['currency_basket'][key]['rates']['buy']['weighted']
                     in_default_currency = v['in_default_currency']
                 if in_default_currency:
+                    r = (in_default_currency * SPREAD)
                     message += ' ~ {} {} at {} {}/{} buying rate'.format(
                         colorise_if_possible(
-                            COLOR_BALANCE(in_default_currency),
-                            '{:7.2f}'.format(in_default_currency),
+                            COLOR_BALANCE(r),
+                            '{:7.2f}'.format(r),
                         ),
                         DEFAULT_CURRENCY,
                         colorise_if_possible(
@@ -764,11 +765,12 @@ class Book:
             # match the value presented by real bank account. Spreads on
             # individual currencies are not matched as there is no automated way
             # to fetch them.
-            t = (total_balance + (foreign_currencies * SPREAD))
+            f = (foreign_currencies * SPREAD)
+            t = (total_balance + f)
             m += ' (~{t} {c}, ~{f} {c} in foreign currencies)'.format(
                 f = colorise_if_possible(
-                    COLOR_BALANCE(foreign_currencies),
-                    '{:.2f}'.format(foreign_currencies),
+                    COLOR_BALANCE(f),
+                    '{:.2f}'.format(f),
                 ),
                 t = colorise_if_possible(
                     COLOR_BALANCE(t),
