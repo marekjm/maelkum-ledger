@@ -22,6 +22,7 @@ TIMESTAMP_ZERO_FORMAT = '%Y-%m-%dT00:00'
 DAYSTAMP_FORMAT       = '%Y-%m-%d'
 THIS_MONTH_FORMAT     = '%Y-%m-01T00:00'
 THIS_YEAR_FORMAT      = '%Y-01-01T00:00'
+LAST_YEAR_DAY_FORMAT  = '%Y-12-31T23:59'
 
 DEFAULT_CURRENCY   = 'PLN'
 SPREAD             = decimal.Decimal('0.88742')
@@ -328,6 +329,29 @@ class Book:
             TIMESTAMP_FORMAT,
         )
         Book.report_period_impl(book, this_year, today, 'This year', column, {
+            'include_percentage': True,
+        })
+
+    @staticmethod
+    def report_last_year(book, column):
+        this_year = datetime.datetime.now().year
+        first_day = datetime.datetime.strptime(
+            datetime.datetime(
+                year = this_year - 1,
+                month = 1,
+                day = 1,
+            ).strftime(TIMESTAMP_ZERO_FORMAT),
+            TIMESTAMP_FORMAT,
+        )
+        last_day = datetime.datetime.strptime(
+            datetime.datetime(
+                year = this_year - 1,
+                month = 12,
+                day = 31,
+            ).strftime(TIMESTAMP_ZERO_FORMAT),
+            TIMESTAMP_FORMAT,
+        )
+        Book.report_period_impl(book, first_day, last_day, 'Last year', column, {
             'include_percentage': True,
         })
 
@@ -785,6 +809,10 @@ class Book:
 
             Book.report_this_year(book, column = 0)
             Book.report_total(book, column = 1)
+            print(screen.str())
+            screen.reset()
+
+            Book.report_last_year(book, column = 1)
             print(screen.str())
             screen.reset()
         else:
