@@ -491,6 +491,17 @@ def main(args):
     book_text = []
     with open(book_path, 'r') as ifstream:
         book_text = ifstream.read().splitlines()
+
+        tmp = []
+        for each in book_text:
+            if each.startswith('include'):
+                _, path = each.split(maxsplit = 1)
+                with open(os.path.join('.', path), 'r') as ifstream:
+                    tmp.extend(ifstream.readlines())
+                continue
+            tmp.append(each)
+        book_text = tmp
+
         book_text = list(filter(lambda x: bool(x), map(lambda x: x.strip(), book_text)))
         book_text = [ each for each in book_text if (not each.startswith('#')) ]
         book_text = [ Parser.lex_line(each) for each in book_text ]
