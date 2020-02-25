@@ -478,6 +478,8 @@ class Parser:
                     '_target': (kind, decimal.Decimal(limit),),
                 }
 
+        book_contents['transactions'] = sorted(book_contents['transactions'], key = lambda each: each['timestamp'],)
+
         return book_contents
 
 __version__ = '0.0.1'
