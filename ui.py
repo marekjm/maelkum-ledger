@@ -262,6 +262,7 @@ class Parser:
                         'destination': dest_account,
                         'value': value,
                         'tags': [],
+                        'with': {},
                     })
                 elif tx_kind == TX_REVENUE_T:
                     source_account = list(filter(
@@ -470,6 +471,14 @@ class Parser:
                             each[0].split(':', 1)[1].split(',')
                         )))
                         book_contents['transactions'][-1]['tags'].extend(tags)
+                    elif each[0].startswith('calculate_as:'):
+                        value = each[0].split(':', 1)[1].strip()
+                        amount, currency = value.split()
+                        amount = decimal.Decimal(amount)
+                        book_contents['transactions'][-1]['with']['calculate_as'] = {
+                            'amount': amount,
+                            'currency': currency,
+                        }
 
         for k, v in configuration.items():
             if k == 'budget':

@@ -142,12 +142,15 @@ class Book:
                 continue
 
             if each['type'] == 'expense':
-                if each['value']['currency'] != DEFAULT_CURRENCY:
-                    c = each['value']['currency']
+                value = each.get('with', {}).get('calculate_as', each['value'])
+                if value['currency'] != DEFAULT_CURRENCY:
+                    c = value['currency']
                     r = book['currency_basket'][(c, DEFAULT_CURRENCY)]['rates']['buy']['weighted']
-                    in_default_currency = (each['value']['amount'] * r)
-                    each['value']['in_default_currency'] = in_default_currency
-                expenses.append(each)
+                    in_default_currency = (value['amount'] * r)
+                    value['in_default_currency'] = in_default_currency
+                expenses.append({
+                    'value': value,
+                })
             elif each['type'] == 'revenue':
                 revenues.append(each)
 
@@ -184,12 +187,16 @@ class Book:
                 continue
 
             if each['type'] == 'expense':
-                if each['value']['currency'] != DEFAULT_CURRENCY:
-                    c = each['value']['currency']
+                value = each.get('with', {}).get('calculate_as', each['value'])
+                if value['currency'] != DEFAULT_CURRENCY:
+                    c = value['currency']
                     r = book['currency_basket'][(c, DEFAULT_CURRENCY)]['rates']['buy']['weighted']
-                    in_default_currency = (each['value']['amount'] * r)
-                    each['value']['in_default_currency'] = in_default_currency
-                expenses.append(each)
+                    in_default_currency = (value['amount'] * r)
+                    value['in_default_currency'] = in_default_currency
+                expenses.append({
+                    'timestamp': each['timestamp'],
+                    'value': value,
+                })
             elif each['type'] == 'revenue':
                 revenues.append(each)
 
