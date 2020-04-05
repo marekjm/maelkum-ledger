@@ -416,7 +416,32 @@ class Parser:
                             op = lambda a, b: a / b
                         else:
                             op = lambda a, b: a * b
-                        src_value_converted = op(-1 * value['src']['amount'], (rate[1] / multiplier))
+
+                        rate_currencies, rate_value = rate
+                        rate_inverted = False
+
+                        # This is needed for easy input from Revolut. In Poland
+                        # the currency prices are usually stated like this:
+                        #
+                        #   EUR/PLN 4.6146
+                        #
+                        # which means "to buy 1 EUR you need 4.6146 PLN".
+                        # However, Revolut uses a different notation:
+                        #
+                        #   PLN/EUR 0.2167
+                        #
+                        # which means "for selling 1 PLN you will get 0.2167 EUR".
+                        # Depending on what you consider more readable either
+                        # the to-buy or for-selling notation is better. In order
+                        # to avoid having to convert between them manually the
+                        # ledger should support them both and normalise.
+                        if rate_currencies[0] == ledger.book.DEFAULT_CURRENCY:
+                            rate_value = 1 / rate_value
+                            rate_inverted = True
+                        # if rate_currencies[0] == value['src']['currency']:
+                        #     rate_value = 1 / rate_value
+
+                        src_value_converted = op(-1 * value['src']['amount'], (rate_value / multiplier))
                         dst_value_converted = value['dst']['amount']
                         ok = ledger.util.math.diff_less_than(
                             src_value_converted,
@@ -437,7 +462,14 @@ class Parser:
                                 value['dst']['currency'],
                             ))
 
-                        book_contents['transactions'][-1]['rate'] = rate
+                        if rate_inverted:
+                            book_contents['transactions'][-1]['rate'] = (
+                                (rate_currencies[1], rate_currencies[0],),
+                                rate_value,
+                            )
+                        else:
+                            book_contents['transactions'][-1]['rate'] = rate
+                        # print(book_contents['transactions'][-1]['rate'])
 
                     if source_account.startswith('adhoc/'):
                         kind, name = source_account.split('/')
