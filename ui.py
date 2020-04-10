@@ -52,6 +52,14 @@ ACCEPTED_CURRENCIES = {
     'USD',
 }
 
+def first(seq):
+    return seq[0]
+
+def first_or(seq, alt = None):
+    return (seq[0] if seq else alt)
+
+def is_equity_account(account):
+    return account.startswith(ledger.constants.ACCOUNT_EQUITY_T + '/')
 
 class Parser:
     @staticmethod
@@ -83,7 +91,12 @@ class Parser:
     @staticmethod
     def parse(lines, convert = decimal.Decimal):
         book_contents = {
-            'accounts': { 'asset': {}, 'liability': {}, 'equity': {}, 'adhoc': {}, },
+            'accounts': {
+                'asset': {},
+                'liability': {},
+                'equity': {},
+                'adhoc': {},
+            },
             'transactions': [],
             'patterns': [],
         }
@@ -116,8 +129,6 @@ class Parser:
             if current:
                 current[add_to].append(each)
                 continue
-
-        # print('groups:', groups)
 
         for each in groups:
             head = each['head']
@@ -165,7 +176,8 @@ class Parser:
                         account_type,
                         account_name,
                     ))
-                book_contents['accounts'][account_type][account_name] = {
+
+                account_data = {
                     'opened': Parser.parse_timestamp(account_date),
                     'balance': account_balance,
                     'currency': account_currency,
@@ -174,6 +186,9 @@ class Parser:
                     'only_if_positive': only_if_positive,
                     'main': is_main,
                 }
+                if account_type == ledger.constants.ACCOUNT_EQUITY_T:
+                    account_data['shares'] = {}
+                book_contents['accounts'][account_type][account_name] = account_data
 
             if head[0] == KEYWORD_MATCH:
                 transaction_type = head[1]
@@ -357,7 +372,26 @@ class Parser:
                             dest_currency,
                         ))
 
-                    if source_currency == dest_currency and source_account[1] != ('-' + dest_account[1]):
+                    # The amount which is positive is the "inflow" of a transfer
+                    # because the money flows *into* an account. This is not a
+                    # proper accounting terminology!
+                    inflow = decimal.Decimal(dest_account[1])
+
+                    # The amount which is negative is the "outflow" of a
+                    # transfer because the money flows *into* an account. This
+                    # is not a proper accounting terminology!
+                    outflow = decimal.Decimal(source_account[1])
+
+                    # Every transaction may have a fee attached. Outflow must be
+                    # equal to inflow plus the fee.
+                    any_fee = list(map(lambda s: s[0].split()[1:],
+                        filter(lambda s: s[0].startswith('fee: '), extra)))
+                    fee, fee_currency = first_or(any_fee,
+                            ('0.00', source_currency,))
+                    fee = decimal.Decimal(fee)
+
+                    balanced_amounts = (outflow == ((inflow + fee) * -1))
+                    if source_currency == dest_currency and not balanced_amounts:
                         raise Exception('amounts are not balanced: {} {} != {} {}'.format(
                             source_account[1], source_currency,
                             dest_account[1], dest_currency,
@@ -373,8 +407,28 @@ class Parser:
                             'amount': convert(dest_account[1]),
                         },
                     }
+
                     source_account = source_account[0]
                     dest_account = dest_account[0]
+
+                    if is_equity_account(dest_account):
+                        any_shares = first_or(list(
+                            map(lambda s: s.split()[1:],
+                            filter(lambda s: s.startswith('shares: '),
+                            map(first, extra)))))
+                        if not any_shares:
+                            fmt = ('equity transfer between {} and {} does not'
+                                + 'specify share amount')
+                            raise Exception(fmt.format(
+                                source_account,
+                                dest_account,
+                            ))
+                        value_in_shares = {
+                            'company': any_shares[0],
+                            'shares': decimal.Decimal(any_shares[1]),
+                            'fee': { 'currency': fee_currency, 'amount': fee, },
+                        }
+                        value['shares'] = value_in_shares
 
                     for pat in patterns:
                         if pat['what'] != tx_kind:
@@ -388,7 +442,26 @@ class Parser:
                         'destination': dest_account,
                         'value': value,
                         'tags': [],
+                        'timestamp': Parser.parse_timestamp(head[1]),
                     })
+                    if fee:
+                        any_intermediary = first_or(list(
+                            map(lambda s: s.split(maxsplit = 1)[1],
+                            filter(lambda s: s.startswith('intermediary: '),
+                            map(first, extra)))))
+                        if not any_intermediary:
+                            fmt = ('share transaction on {} does not specify an'
+                                + ' intermediary')
+                            raise Exception(fmt.format(
+                                head[1],
+                            ))
+                        book_contents['transactions'].append({
+                            'type': 'expense',
+                            'source': source_account,
+                            'destination': any_intermediary,
+                            'value': { 'currency': fee_currency, 'amount': fee, },
+                            'tags': [],
+                        })
                     if source_currency != dest_currency:
                         rate = list(
                             map(lambda x: x[0],
