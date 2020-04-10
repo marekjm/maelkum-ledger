@@ -390,7 +390,7 @@ class Parser:
                             ('0.00', source_currency,))
                     fee = decimal.Decimal(fee)
 
-                    balanced_amounts = (outflow == ((inflow + fee) * -1))
+                    balanced_amounts = (outflow == ((inflow - fee) * -1))
                     if source_currency == dest_currency and not balanced_amounts:
                         raise Exception('amounts are not balanced: {} {} != {} {}'.format(
                             source_account[1], source_currency,

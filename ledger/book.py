@@ -496,6 +496,20 @@ class Book:
                         v['currency'],
                         DEFAULT_CURRENCY,
                     )
+
+            if kind == ledger.constants.ACCOUNT_EQUITY_T:
+                gain = v['profit']
+                nominal = gain['nominal']
+                percent = gain['percent']
+                message += ' ({} {}, {}%)'.format(
+                    colorise_if_possible(
+                        COLOR_BALANCE(nominal),
+                        '{:.2f}'.format(nominal)),
+                    v['currency'],
+                    colorise_if_possible(
+                        COLOR_BALANCE(percent),
+                        '{:.2f}'.format(percent)),
+                )
             print(message)
 
     @staticmethod
@@ -553,17 +567,69 @@ class Book:
                 dst_account_kind, dst_account_id = destination.split('/')
 
                 value = each['value']
-                if 'amount' in value:
+                if 'shares' in value:
+                    print(each)
+
+                    src = value['src']
+                    dst = value['dst']
+                    if book['accounts'][src_account_kind][src_account_id]['currency'] != src['currency']:
+                        raise Exception('{}: mismatched currency: {} != {}'.format(
+                            each['timestamp'],
+                            book['accounts'][src_account_kind][src_account_id]['currency'],
+                            src['currency'],
+                        ))
+                    if book['accounts'][dst_account_kind][dst_account_id]['currency'] != dst['currency']:
+                        raise Exception('{}: mismatched currency: {} != {}'.format(
+                            each['timestamp'],
+                            book['accounts'][dst_account_kind][dst_account_id]['currency'],
+                            dst['currency'],
+                        ))
+                    if src['currency'] != dst['currency']:
+                        fmt = ('currencies do not match on equity transaction'
+                               ' on {}: {} != {}')
+                        raise Exception(fmt.format(
+                            each['timestamp'],
+                            src['currency'],
+                            dst['currency'],
+                        ))
+
+                    book['accounts'][src_account_kind][src_account_id]['balance'] += src['amount']
+                    book['accounts'][dst_account_kind][dst_account_id]['balance'] += dst['amount']
+
+                    dst_account = book['accounts'][dst_account_kind][dst_account_id]
+                    dst_account_shares = dst_account['shares']
+
+                    if value['shares']['company'] not in dst_account_shares:
+                        # Initialise shares tracking for a company.
+                        dst_account_shares[value['shares']['company']] = {
+                            'txs': [],
+                            'shares': decimal.Decimal(),
+                            'fees': decimal.Decimal(),
+                            'price_per_share': decimal.Decimal(),
+                        }
+
+                    sh_company = value['shares']['company']
+                    sh_shares = value['shares']['shares']
+                    sh_fee = value['shares']['fee']['amount']
+                    sh_price_per_share = abs(dst['amount'] / sh_shares)
+                    company_shares = dst_account_shares[sh_company]
+
+                    company_shares['txs'].append({
+                        'value': each['value'],
+                        'timestamp': each['timestamp'],
+                    })
+                    company_shares['shares'] += sh_shares
+                    company_shares['fees'] += sh_fee
+                    company_shares['price_per_share'] = sh_price_per_share
+                elif 'amount' in value:
                     # Transfer between two fiat accounts in the same currency.
                     # For example between the main account and a credit card or
                     # rent liability account.
                     raise Exception('old-style transfer')
-                    book['accounts'][src_account_kind][src_account_id]['balance'] += value['amount']
-                    book['accounts'][dst_account_kind][dst_account_id]['balance'] += value['amount']
                 elif 'src' in value:
-                    # Transfer between two fiat accounts in the different
-                    # currencies. For example between the main account in PLN
-                    # and a savings account in JPY.
+                    # Transfer between two fiat accounts in the same or in
+                    # different currencies. For example between the main account
+                    # in PLN and a savings account in JPY.
                     src = value['src']
                     dst = value['dst']
                     if book['accounts'][src_account_kind][src_account_id]['currency'] != src['currency']:
@@ -592,12 +658,6 @@ class Book:
                     # FIXME Transfers between two share-based accounts are not
                     # supported currently.
                     raise Exception('equity transfers not supported')
-                    fiat_amount = value['fiat']['amount']
-                    fiat_currency = value['fiat']['currency']
-                    shares_amount = value['shares']
-                    book['accounts'][src_account_kind][src_account_id]['value'] -= fiat_amount
-                    book['accounts'][dst_account_kind][dst_account_id]['balance']['u'] += shares_amount
-                    book['accounts'][dst_account_kind][dst_account_id]['balance'][fiat_currency] += fiat_amount
 
                 dst_account = book['accounts'][dst_account_kind][dst_account_id]
 
@@ -729,6 +789,52 @@ class Book:
             per_amount = (100 if account['currency'] == 'JPY' else 1)
             in_default_currency = account['balance'] * (rate / per_amount)
             account['in_default_currency'] = in_default_currency
+
+        for name, account in book['accounts']['equity'].items():
+            print(name, account)
+
+            account['balance'] = decimal.Decimal()
+            account['paid'] = decimal.Decimal()
+            account['value'] = decimal.Decimal()
+
+            for company, shares in account['shares'].items():
+                print(company, shares)
+                shares_no = shares['shares']
+                share_price = shares['price_per_share']
+                fees = shares['fees']
+
+                # Here is the total money that you had to pay to obtain the
+                # shares. It is the source price because what you paid not only
+                # includes the shares' worth, but also the fees.
+                paid = abs(sum(map(lambda x: x['value']['src']['amount'],
+                    shares['txs'])))
+
+                # What the shares are worth is simple: you take price of one
+                # share and multiply it by the amount of shares you own.
+                worth = (shares_no * share_price)
+
+                # The value of shares for you is a little bit less than what
+                # they are worth, though. Remember that you paid some fees to
+                # acquire them - this necessarily pulls their value down a bit.
+                value = (worth - fees)
+
+                # Account's balance tells you the worth of your account and is
+                # not concerned with any fees that you may have incurred while
+                # acquiting the wealth.
+                account['balance'] += worth
+                account['paid'] += paid
+                account['value'] += value
+
+                shares['balance'] = worth
+                shares['paid'] = paid
+                shares['value'] = value
+
+            nominal_profit = (account['balance'] - account['paid'])
+            percent_profit = (((account['balance'] / account['paid'])) - 1) * 100
+            account['profit'] = {
+                'nominal': nominal_profit,
+                'percent': percent_profit,
+            }
 
         return book
 
