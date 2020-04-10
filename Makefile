@@ -7,3 +7,6 @@ install:
 	mkdir -p ~/.local/bin
 	cp -v ./ui.py ~/.local/bin/maelkum-ledger
 	chmod +x ~/.local/bin/maelkum-ledger
+
+watch-install:
+	find . -name '*.py' | entr -c make install
