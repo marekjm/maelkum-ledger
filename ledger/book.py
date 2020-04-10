@@ -15,6 +15,7 @@ from ledger.util.colors import (
     COLOR_EXCHANGE_RATE,
 )
 import ledger.util.math
+import ledger.constants
 
 
 TIMESTAMP_FORMAT      = '%Y-%m-%dT%H:%M'
@@ -31,10 +32,10 @@ ALLOWED_CONVERSION_DIFFERENCE = decimal.Decimal('0.005')
 DISPLAY_IMBALANCES = True
 DISPLAY_ALL_IMBALANCES = False
 
-ACCOUNT_ASSET_T = 'asset'
-ACCOUNT_LIABILITY_T = 'liability'
-ACCOUNT_EQUITY_T = 'equity'
-ACCOUNT_ADHOC_T = 'adhoc'
+ACCOUNT_ASSET_T = ledger.constants.ACCOUNT_ASSET_T
+ACCOUNT_LIABILITY_T = ledger.constants.ACCOUNT_LIABILITY_T
+ACCOUNT_EQUITY_T = ledger.constants.ACCOUNT_EQUITY_T
+ACCOUNT_ADHOC_T = ledger.constants.ACCOUNT_ADHOC_T
 ACCOUNT_T = (
     ACCOUNT_ASSET_T,
     ACCOUNT_LIABILITY_T,

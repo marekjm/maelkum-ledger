@@ -21,6 +21,7 @@ from ledger.util.colors import (
 import ledger.util.screen
 import ledger.util.math
 import ledger.book
+import ledger.constants
 
 
 OWN_ACCOUNT_T = 0
