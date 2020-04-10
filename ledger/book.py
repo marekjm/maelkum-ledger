@@ -501,6 +501,7 @@ class Book:
                 gain = v['profit']
                 nominal = gain['nominal']
                 percent = gain['percent']
+                gain_sign = ('+' if percent > 0 else '')
                 message += ' ({} {}, {}%)'.format(
                     colorise_if_possible(
                         COLOR_BALANCE(nominal),
@@ -508,7 +509,7 @@ class Book:
                     v['currency'],
                     colorise_if_possible(
                         COLOR_BALANCE(percent),
-                        '{:.2f}'.format(percent)),
+                        '{}{:.4f}'.format(gain_sign, percent)),
                 )
             print(message)
 
@@ -688,10 +689,18 @@ class Book:
                             ))
                     book['accounts'][account_kind][account_id]['balance'] = expected
                 else:
-                    recorded = book['accounts'][account_kind][account_id]['value']
-                    expected = each['value']
-                    for k, v in expected.items():
-                        book['accounts'][account_kind][account_id][k] = v
+                    a, company = account_id.split()
+                    amount = each['value']['amount']
+                    currency = each['value']['currency']
+                    if currency != book['accounts']['equity'][a]['currency']:
+                        fmt = 'mismatched currency: {}: {} != {}'
+                        raise Exception(fmt.format(
+                            each['timestamp'],
+                            book['accounts']['equity'][a]['currency'],
+                            currency,
+                        ))
+                    shares = book['accounts']['equity'][a]['shares'][company]
+                    shares['price_per_share'] = decimal.Decimal(amount)
             elif each['type'] == 'ad-hoc':
                 tmp_name = each['name']
                 book['accounts']['liability'][tmp_name] = {
