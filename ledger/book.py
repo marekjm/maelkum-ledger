@@ -834,7 +834,9 @@ class Book:
                 shares['value'] = value
 
             nominal_profit = (account['balance'] - account['paid'])
-            percent_profit = (((account['balance'] / account['paid'])) - 1) * 100
+            percent_profit = decimal.Decimal()
+            if account['paid']:  # beware zero division!
+                percent_profit = (((account['balance'] / account['paid'])) - 1) * 100
             account['profit'] = {
                 'nominal': nominal_profit,
                 'percent': percent_profit,
