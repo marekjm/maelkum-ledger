@@ -898,6 +898,7 @@ class Book:
                 ),
                 c = DEFAULT_CURRENCY,
             )
+        print(m)
         Book.report_asset_balance(book)
         Book.report_liability_balance(book)
         Book.report_equity_balance(book)
