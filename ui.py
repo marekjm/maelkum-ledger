@@ -201,7 +201,6 @@ class Parser:
                 })
 
             if head[0] == KEYWORD_BALANCE:
-                # print('=>', head)
                 accounts = [
                     ((OWN_ACCOUNT_T, a.rsplit(maxsplit = 2),)
                      if is_own_account(a)
@@ -221,7 +220,6 @@ class Parser:
                 continue
 
             if head[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T,):
-                # print('=>', head)
                 accounts = [
                     ((OWN_ACCOUNT_T, a.rsplit(maxsplit = 2),)
                      if is_own_account(a)
@@ -543,7 +541,6 @@ class Parser:
                             )
                         else:
                             book_contents['transactions'][-1]['rate'] = rate
-                        # print(book_contents['transactions'][-1]['rate'])
 
                     if source_account.startswith('adhoc/'):
                         kind, name = source_account.split('/')

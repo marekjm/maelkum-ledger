@@ -569,8 +569,6 @@ class Book:
 
                 value = each['value']
                 if 'shares' in value:
-                    print(each)
-
                     src = value['src']
                     dst = value['dst']
                     if book['accounts'][src_account_kind][src_account_id]['currency'] != src['currency']:
@@ -800,14 +798,11 @@ class Book:
             account['in_default_currency'] = in_default_currency
 
         for name, account in book['accounts']['equity'].items():
-            print(name, account)
-
             account['balance'] = decimal.Decimal()
             account['paid'] = decimal.Decimal()
             account['value'] = decimal.Decimal()
 
             for company, shares in account['shares'].items():
-                print(company, shares)
                 shares_no = shares['shares']
                 share_price = shares['price_per_share']
                 fees = shares['fees']
@@ -901,7 +896,6 @@ class Book:
                 ),
                 c = DEFAULT_CURRENCY,
             )
-        print(m)
         Book.report_asset_balance(book)
         Book.report_liability_balance(book)
         Book.report_equity_balance(book)
