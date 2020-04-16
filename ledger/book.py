@@ -595,12 +595,29 @@ class Book:
                     book['accounts'][src_account_kind][src_account_id]['balance'] += src['amount']
                     book['accounts'][dst_account_kind][dst_account_id]['balance'] += dst['amount']
 
-                    dst_account = book['accounts'][dst_account_kind][dst_account_id]
-                    dst_account_shares = dst_account['shares']
+                    no_shares = value['shares']['shares']
+                    if src_account_kind == ACCOUNT_EQUITY_T and no_shares > 0:
+                        fmt = '{}: amount of sold shares must be geater than 0'
+                        raise Exception(fmt.format(
+                            each['timestamp'],
+                        ))
 
-                    if value['shares']['company'] not in dst_account_shares:
+                    if no_shares > 0:
+                        eq_account = book['accounts'][dst_account_kind][dst_account_id]
+                        eq_account_shares = eq_account['shares']
+                        use_amount = dst['amount']
+                    elif no_shares < 0:
+                        eq_account = book['accounts'][src_account_kind][src_account_id]
+                        eq_account_shares = eq_account['shares']
+                        use_amount = src['amount']
+                    else:
+                        raise Exception('{}: share transfer of 0'.format(
+                            each['timestamp'],
+                        ))
+
+                    if value['shares']['company'] not in eq_account_shares:
                         # Initialise shares tracking for a company.
-                        dst_account_shares[value['shares']['company']] = {
+                        eq_account_shares[value['shares']['company']] = {
                             'txs': [],
                             'shares': decimal.Decimal(),
                             'fees': decimal.Decimal(),
@@ -610,11 +627,12 @@ class Book:
                     sh_company = value['shares']['company']
                     sh_shares = value['shares']['shares']
                     sh_fee = value['shares']['fee']['amount']
-                    sh_price_per_share = abs(dst['amount'] / sh_shares)
-                    company_shares = dst_account_shares[sh_company]
+                    sh_price_per_share = abs(use_amount / sh_shares)
+                    company_shares = eq_account_shares[sh_company]
 
                     company_shares['txs'].append({
                         'value': each['value'],
+                        'shares': no_shares,
                         'timestamp': each['timestamp'],
                     })
                     company_shares['shares'] += sh_shares
@@ -810,8 +828,31 @@ class Book:
                 # Here is the total money that you had to pay to obtain the
                 # shares. It is the source price because what you paid not only
                 # includes the shares' worth, but also the fees.
-                paid = abs(sum(map(lambda x: x['value']['src']['amount'],
-                    shares['txs'])))
+                #
+                # Note that the amount may be negative (if you were only buying
+                # shares or sold them with a loss) or positive (if you sold
+                # shares with a profit).
+                paid = sum(map(
+                    lambda x: (
+                        x['value']['src']['amount']
+                        # A clever way of obtaining 1 if the operation was a buy
+                        # and -1 if the operation was a sell.
+                        #
+                        # We need this to correctly calculate the total amount
+                        # of money we have paid for the shares we have. If we
+                        # were buying then we should add the amount to the total
+                        # cost, but if we were selling then we should subtract.
+                        # Multiplying the source amount by either 1 or -1 makes
+                        # it possible to do it in a simple map/sum operation.
+                        #
+                        # Why do we sum source amounts? Because when buying we
+                        # should consider the amount of money we had to give to
+                        # the trading organisation to obtain the shares, and
+                        # when selling we should consider the amount of money we
+                        # got from the market.
+                        * (x['shares'] / abs(x['shares']))
+                    ),
+                    shares['txs']))
 
                 # What the shares are worth is simple: you take price of one
                 # share and multiply it by the amount of shares you own.
@@ -833,10 +874,10 @@ class Book:
                 shares['paid'] = paid
                 shares['value'] = value
 
-            nominal_profit = (account['balance'] - account['paid'])
+            nominal_profit = (account['balance'] + account['paid'])
             percent_profit = decimal.Decimal()
             if account['paid']:  # beware zero division!
-                percent_profit = (((account['balance'] / account['paid'])) - 1) * 100
+                percent_profit = (((account['balance'] / -account['paid'])) - 1) * 100
             account['profit'] = {
                 'nominal': nominal_profit,
                 'percent': percent_profit,

@@ -409,7 +409,9 @@ class Parser:
                     source_account = source_account[0]
                     dest_account = dest_account[0]
 
-                    if is_equity_account(dest_account):
+                    is_equity_tx = (is_equity_account(dest_account)
+                                 or is_equity_account(source_account))
+                    if is_equity_tx:
                         any_shares = first_or(list(
                             map(lambda s: s.split()[1:],
                             filter(lambda s: s.startswith('shares: '),
