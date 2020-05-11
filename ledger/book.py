@@ -13,6 +13,11 @@ from ledger.util.colors import (
     COLOR_SPENT_RATIO,
     COLOR_WARNING,
     COLOR_EXCHANGE_RATE,
+    COLOR_NEUTRAL,
+    COLOR_SHARE_PRICE,
+    COLOR_SHARE_PRICE_AVG,
+    COLOR_SHARE_WORTH,
+    COLOR_SHARE_COUNT,
 )
 import ledger.util.math
 import ledger.constants
@@ -392,13 +397,17 @@ class Book:
         )[0]
 
     @staticmethod
-    def no_of_accounts(book):
+    def no_of_accounts(book, kind = None):
         a = book['accounts']
-        return (
+        count_all = (
               len(list(a.get('asset', {}).keys()))
             + len(list(a.get('liability', {}).keys()))
             + len(list(a.get('equity', {}).keys()))
         )
+        if kind is None:
+            return count_all
+        else:
+            return len(list(a.get(kind, {}).keys()))
 
     @staticmethod
     def get_main_account(book):
@@ -596,8 +605,9 @@ class Book:
                     book['accounts'][dst_account_kind][dst_account_id]['balance'] += dst['amount']
 
                     no_shares = value['shares']['shares']
-                    if src_account_kind == ACCOUNT_EQUITY_T and no_shares > 0:
-                        fmt = '{}: amount of sold shares must be geater than 0'
+                    if src_account_kind == ACCOUNT_EQUITY_T and no_shares == 0:
+                        print(value)
+                        fmt = '{}: amount of sold shares must not be 0'
                         raise Exception(fmt.format(
                             each['timestamp'],
                         ))
@@ -832,6 +842,10 @@ class Book:
                 # Note that the amount may be negative (if you were only buying
                 # shares or sold them with a loss) or positive (if you sold
                 # shares with a profit).
+                #
+                # FIXME Calculations should be reset of the amount of shares
+                # ever reaches 0 as that means we sold all our shares, and using
+                # old prices after such a point does not make much sense.
                 paid = sum(map(
                     lambda x: (
                         x['value']['src']['amount']
@@ -866,9 +880,13 @@ class Book:
                 # Account's balance tells you the worth of your account and is
                 # not concerned with any fees that you may have incurred while
                 # acquiting the wealth.
-                account['balance'] += worth
-                account['paid'] += paid
-                account['value'] += value
+                #
+                # The balance should not be modified if there are not shares for
+                # a company. This means that all shares were sold and including
+                # their cost in the report would be hugely misleading.
+                account['balance'] += (worth if shares_no else decimal.Decimal(0))
+                account['paid'] += (paid if shares_no else decimal.Decimal(0))
+                account['value'] += (value if shares_no else decimal.Decimal(0))
 
                 shares['balance'] = worth
                 shares['paid'] = paid
@@ -946,6 +964,116 @@ class Book:
         Book.report_adhoc_balance(book)
 
     @staticmethod
+    def report_equities(book):
+        no_of_accounts = Book.no_of_accounts(book, ACCOUNT_EQUITY_T)
+        m = '{} of {} equity account{}'.format(
+            colorise_if_possible(COLOR_PERIOD_NAME, 'State'),
+            no_of_accounts,
+            ('s' if no_of_accounts > 1 else ''),
+        )
+        print(m)
+
+        account_name_length = max(map(len,
+            book['accounts'][ACCOUNT_EQUITY_T].keys()))
+        balance_length = max(map(lambda each: len(str(each['balance'])),
+            book['accounts'][ACCOUNT_EQUITY_T].values()))
+        for account_name in book['accounts'][ACCOUNT_EQUITY_T]:
+            account = book['accounts'][ACCOUNT_EQUITY_T][account_name]
+
+            gain = account['profit']
+            nominal = gain['nominal']
+            percent = gain['percent']
+            gain_sign = ('+' if percent > 0 else '')
+
+            oneline_report = '  {} => {} {}'.format(
+                account_name,
+                colorise_if_possible(
+                    COLOR_BALANCE(account['balance']),
+                    '{:.2f}'.format(account['balance']),
+                ),
+                account['currency'],
+            )
+            oneline_report += ' ({} {}, {}%)'.format(
+                colorise_if_possible(
+                    COLOR_BALANCE(nominal),
+                    '{:.2f}'.format(nominal)),
+                account['currency'],
+                colorise_if_possible(
+                    COLOR_BALANCE(percent),
+                    '{}{:.4f}'.format(gain_sign, percent)),
+            )
+            print(oneline_report)
+
+            company_name_length = max(map(len, account['shares'].keys()))
+            shares_length = max(map(lambda each: len(str(each['shares'])),
+                account['shares'].values()))
+            share_price_length = max(map(
+                lambda each: len(str(each['price_per_share']).split('.')[0]),
+                account['shares'].values())) + 5
+            shares_value_length = max(map(
+                lambda each: len(str(each['balance']).split('.')[0]),
+                account['shares'].values())) + 3
+            for company_name in sorted(account['shares'].keys()):
+                company = account['shares'][company_name]
+
+                no_of_shares = company['shares']
+                if no_of_shares == 0:
+                    continue
+
+                txs = company['txs']
+                fees = company['fees']
+                worth = company['balance']
+                value = company['value']
+                paid = company['paid']
+                price_per_share = company['price_per_share']
+                price_per_share_avg = abs(paid / no_of_shares)
+
+                gain_nominal = (worth + paid)
+                gain_percent = -((gain_nominal / paid) * 100)
+
+                gain_nominal_per_share = (gain_nominal / no_of_shares)
+
+                company_report = '    {} : '.format(
+                    colorise_if_possible(
+                        COLOR_BALANCE(gain_nominal),
+                        company_name.ljust(company_name_length),
+                    ),
+                )
+                company_report += '{} * {} = {}'.format(
+                    colorise_if_possible(
+                        COLOR_SHARE_PRICE,
+                        '{{:{}.4f}}'.format(share_price_length).format(price_per_share)),
+                    colorise_if_possible(
+                        COLOR_SHARE_COUNT,
+                        str(no_of_shares).rjust(shares_length)),
+                    colorise_if_possible(
+                        COLOR_SHARE_WORTH,
+                        '{{:{}.2f}}'.format(shares_value_length).format(worth)),
+                )
+
+                company_report += ' ({} {}, {}%; {}{} {})'.format(
+                    colorise_if_possible(
+                        COLOR_BALANCE(gain_nominal),
+                        '{:7.2f}'.format(gain_nominal)),
+                    account['currency'],
+                    colorise_if_possible(
+                        COLOR_BALANCE(gain_percent),
+                        '{:6.2f}'.format(gain_percent)),
+                    colorise_if_possible(
+                        COLOR_SHARE_PRICE_AVG,
+                        '{:7.2f}'.format(price_per_share_avg)),
+                    colorise_if_possible(
+                        COLOR_BALANCE(gain_nominal_per_share),
+                        '{}{:.2f}'.format(
+                            ('' if (gain_nominal_per_share < 0) else '+'),
+                            gain_nominal_per_share,
+                        )),
+                    account['currency'],
+                )
+
+                print(company_report)
+
+    @staticmethod
     def report(screen, book):
         Book.screen = screen
 
@@ -985,3 +1113,4 @@ class Book:
         # receive the most money from us? This could be useful.
 
         Book.report_balances(book)
+        Book.report_equities(book)

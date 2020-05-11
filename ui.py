@@ -24,7 +24,7 @@ import ledger.book
 import ledger.constants
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __commit__ = 'HEAD'
 
 

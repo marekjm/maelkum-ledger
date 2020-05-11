@@ -6,6 +6,7 @@ except ImportError:
 
 # Colorisation utilities.
 def colorise_if_possible(color, s):
+    s = str(s)
     if colored is None:
         return s
     return (colored.fg(color) + s + colored.attr('reset'))
@@ -21,11 +22,18 @@ COLOR_CATASTROPHE = 'red_3a'
 COLOR_FATAL = 'red'
 COLOR_WARNING = 'orange_red_1'
 COLOR_OK = 'green'
+
 COLOR_EXPENSES = 'orange_red_1'
 COLOR_REVENUES = 'medium_spring_green'
+COLOR_NEUTRAL = 'light_sea_green'
+
+COLOR_SHARE_PRICE = 'wheat_1'
+COLOR_SHARE_PRICE_AVG = 'khaki_1'
+COLOR_SHARE_WORTH = 'white'
+COLOR_SHARE_COUNT = 'navajo_white_1'
+
 COLOR_DATETIME = 'white'
 COLOR_PERIOD_NAME = 'white'
-COLOR_NEUTRAL = 'light_sea_green'
 
 COLOR_EXCHANGE_RATE = 'light_yellow'
 
