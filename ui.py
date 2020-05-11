@@ -24,6 +24,10 @@ import ledger.book
 import ledger.constants
 
 
+__version__ = '0.1.0'
+__commit__ = 'HEAD'
+
+
 OWN_ACCOUNT_T = 0
 EXT_ACCOUNT_T = 1
 def is_own_account(a):
@@ -596,12 +600,16 @@ class Parser:
 
         return book_contents
 
-__version__ = '0.0.1'
-
 def main(args):
     book_path = args[0]
-    if book_path == '--version':
-        print("Maelkum's ledger {}".format(__version__))
+    if ('--version' in args):
+        fmt = "Maelkum's ledger {version}"
+        if ('--verbose' in args):
+            fmt += ' ({commit})'
+        print(fmt.format(
+            version = __version__,
+            commit = __commit__,
+        ))
         exit(0)
 
     book_text = []
