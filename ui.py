@@ -651,7 +651,7 @@ def main(args):
 
     screen = ledger.util.screen.Screen(
         width = ledger.util.screen.Screen.get_tty_width(),
-        columns = 2,
+        columns = 3,
     )
     ledger.book.Book.report(
         screen = screen,

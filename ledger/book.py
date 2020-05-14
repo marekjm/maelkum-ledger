@@ -33,7 +33,7 @@ LAST_YEAR_DAY_FORMAT  = '%Y-12-31T23:59'
 DEFAULT_CURRENCY   = 'PLN'
 ALLOWED_CONVERSION_DIFFERENCE = decimal.Decimal('0.005')
 
-DISPLAY_IMBALANCES = True
+DISPLAY_IMBALANCES = False
 DISPLAY_ALL_IMBALANCES = False
 
 ACCOUNT_ASSET_T = ledger.constants.ACCOUNT_ASSET_T
@@ -225,6 +225,30 @@ class Book:
             TIMESTAMP_FORMAT,
         )
         Book.report_period_impl(book, last_week, today, 'Last 7 days', column)
+
+    @staticmethod
+    def report_prev_7_days(book, column):
+        today = datetime.datetime.strptime(
+            (datetime.datetime.now() - datetime.timedelta(days = 8)).strftime(TIMESTAMP_ZERO_FORMAT),
+            TIMESTAMP_FORMAT,
+        )
+        last_week = datetime.datetime.strptime(
+            (datetime.datetime.now() - datetime.timedelta(days = 14)).strftime(TIMESTAMP_ZERO_FORMAT),
+            TIMESTAMP_FORMAT,
+        )
+        Book.report_period_impl(book, last_week, today, 'Previous 7 days', column)
+
+    @staticmethod
+    def report_last_14_days(book, column):
+        today = datetime.datetime.strptime(
+            (datetime.datetime.now() - datetime.timedelta(days = 0)).strftime(TIMESTAMP_ZERO_FORMAT),
+            TIMESTAMP_FORMAT,
+        )
+        last_week = datetime.datetime.strptime(
+            (datetime.datetime.now() - datetime.timedelta(days = 14)).strftime(TIMESTAMP_ZERO_FORMAT),
+            TIMESTAMP_FORMAT,
+        )
+        Book.report_period_impl(book, last_week, today, 'Last 14 days', column)
 
     @staticmethod
     def report_a_month_impl(book, first_day, last_day, name, column):
@@ -1099,6 +1123,8 @@ class Book:
             screen.reset()
 
             Book.report_last_7_days(book, column = 0)
+            Book.report_prev_7_days(book, column = 1)
+            Book.report_last_14_days(book, column = 2)
             print(screen.str())
             screen.reset()
 
@@ -1108,13 +1134,14 @@ class Book:
             screen.reset()
 
             Book.report_this_year(book, column = 0)
-            Book.report_total(book, column = 1)
+            Book.report_last_year(book, column = 1)
+            Book.report_total(book, column = 2)
             print(screen.str())
             screen.reset()
 
-            Book.report_last_year(book, column = 1)
-            print(screen.str())
-            screen.reset()
+            # Book.report_total(book, column = 1)
+            # print(screen.str())
+            # screen.reset()
         else:
             print('No transactions.')
 
