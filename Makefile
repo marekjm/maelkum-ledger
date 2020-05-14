@@ -12,6 +12,7 @@ install:
 	cp -v ./ui.py $(BIN_DIR)/maelkum-ledger
 	chmod +x $(BIN_DIR)/maelkum-ledger
 	sed -i "s/__commit__ = 'HEAD'/__commit__ = '$(shell git rev-parse HEAD)'/" $(BIN_DIR)/maelkum-ledger
+	if [[ -d ~/.config/nvim ]]; then cp -v ./ledger.vim ~/.config/nvim/syntax; fi
 
 watch-install:
 	find . -name '*.py' | entr -c make install
