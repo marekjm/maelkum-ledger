@@ -978,6 +978,12 @@ class Book:
             nominal = gain['nominal']
             percent = gain['percent']
             gain_sign = ('+' if percent > 0 else '')
+            companies_with_loss = len(list(
+                filter(lambda x: x < 0,
+                map(lambda each: (each['balance'] + each['paid']),
+                filter(lambda each: each['shares'],
+                account['shares'].values()
+            )))))
 
             oneline_report = '  {} => {} {}'.format(
                 account_name,
@@ -987,7 +993,7 @@ class Book:
                 ),
                 account['currency'],
             )
-            oneline_report += ' ({} {}, {}%)'.format(
+            oneline_report += ' ({} {}, {}%) in {} compan{}{}'.format(
                 colorise_if_possible(
                     COLOR_BALANCE(nominal),
                     '{:.2f}'.format(nominal)),
@@ -995,6 +1001,15 @@ class Book:
                 colorise_if_possible(
                     COLOR_BALANCE(percent),
                     '{}{:.4f}'.format(gain_sign, percent)),
+                colorise_if_possible(COLOR_SHARE_WORTH,
+                    len(account['shares'].keys())),
+                ('y' if len(account['shares'].keys()) == 1 else 'ies'),
+                (
+                    ', {} with loss'.format(colorise_if_possible(
+                        COLOR_EXPENSES, companies_with_loss))
+                    if companies_with_loss else
+                    ''
+                ),
             )
             print(oneline_report)
 
@@ -1052,13 +1067,13 @@ class Book:
                     account['currency'],
                     colorise_if_possible(
                         COLOR_BALANCE(gain_percent),
-                        '{:6.2f}'.format(gain_percent)),
+                        '{:8.4f}'.format(gain_percent)),
                     colorise_if_possible(
                         COLOR_SHARE_PRICE_AVG,
                         '{:7.2f}'.format(price_per_share_avg)),
                     colorise_if_possible(
                         COLOR_BALANCE(gain_nominal_per_share),
-                        '{}{:.2f}'.format(
+                        '{}{:.4f}'.format(
                             ('' if (gain_nominal_per_share < 0) else '+'),
                             gain_nominal_per_share,
                         )),
