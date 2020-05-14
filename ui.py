@@ -44,6 +44,7 @@ KEYWORD_MATCH = 'match'
 KEYWORD_OPEN = 'open'
 KEYWORD_SET = 'set'
 KEYWORD_BALANCE = 'balance'
+KEYWORD_CURRENCY_RATES = 'currency_rates'
 
 ACCEPTED_CURRENCIES = {
     'CHF',
@@ -76,7 +77,7 @@ class Parser:
             return text.split()
         elif mx('asset:') or (text == 'end') or mx('balance:'):
             return text.split()
-        elif mx(KEYWORD_MATCH) or mx(KEYWORD_BALANCE):
+        elif mx(KEYWORD_MATCH) or mx(KEYWORD_BALANCE) or mx(KEYWORD_CURRENCY_RATES):
             return text.split()
         elif mx(KEYWORD_SET):
             return text.split(maxsplit=2)
@@ -103,6 +104,7 @@ class Parser:
             },
             'transactions': [],
             'patterns': [],
+            'currency_rates': {},
         }
         patterns = []
 
@@ -122,7 +124,7 @@ class Parser:
                 continue
 
             if each[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T, KEYWORD_OPEN, KEYWORD_MATCH,
-                    KEYWORD_BALANCE):
+                    KEYWORD_BALANCE, KEYWORD_CURRENCY_RATES):
                 current['head'] = each
                 continue
 
@@ -221,6 +223,24 @@ class Parser:
                         'value': { 'currency': a[2], 'amount': decimal.Decimal(a[1]), },
                         'timestamp': ts,
                     })
+                continue
+
+            if head[0] == KEYWORD_CURRENCY_RATES:
+                ts = Parser.parse_timestamp(head[1])
+                rates = book_contents['currency_rates']
+                for each in map(lambda e: e[0], body):
+                    currency_pair, rate = each.split()
+                    currency_pair = tuple(currency_pair.split('/'))
+
+                    if ledger.book.DEFAULT_CURRENCY not in currency_pair:
+                        raise Exception('invalid currency pair: {}'.format(
+                            '/'.join(currency_pair)))
+
+                    if ledger.book.DEFAULT_CURRENCY == currency_pair[0]:
+                        currency_pair = (currency_pair[1], currency_pair[0],)
+                        rate = 1 / rate
+
+                    rates[currency_pair] = decimal.Decimal(rate)
                 continue
 
             if head[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T,):
@@ -488,7 +508,6 @@ class Parser:
                                 dest_account,
                             ))
 
-                        multiplier = (100 if value['dst']['currency'] == 'JPY' else 1)
                         op = None
                         if value['src']['currency'] == ledger.book.DEFAULT_CURRENCY:
                             op = lambda a, b: a / b
@@ -516,10 +535,8 @@ class Parser:
                         if rate_currencies[0] == ledger.book.DEFAULT_CURRENCY:
                             rate_value = 1 / rate_value
                             rate_inverted = True
-                        # if rate_currencies[0] == value['src']['currency']:
-                        #     rate_value = 1 / rate_value
 
-                        src_value_converted = op(-1 * value['src']['amount'], (rate_value / multiplier))
+                        src_value_converted = op(-1 * value['src']['amount'], rate_value)
                         dst_value_converted = value['dst']['amount']
                         ok = ledger.util.math.diff_less_than(
                             src_value_converted,

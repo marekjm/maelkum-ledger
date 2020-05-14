@@ -31,7 +31,6 @@ THIS_YEAR_FORMAT      = '%Y-01-01T00:00'
 LAST_YEAR_DAY_FORMAT  = '%Y-12-31T23:59'
 
 DEFAULT_CURRENCY   = 'PLN'
-SPREAD             = decimal.Decimal('0.88742')
 ALLOWED_CONVERSION_DIFFERENCE = decimal.Decimal('0.005')
 
 DISPLAY_IMBALANCES = True
@@ -483,27 +482,40 @@ class Book:
                 v['currency'],
             )
             if v['currency'] != DEFAULT_CURRENCY:
-                rate = decimal.Decimal()
-                in_default_currency = decimal.Decimal()
+                weighted_buying_rate = None
+                in_default_currency = None
                 key = (v['currency'], DEFAULT_CURRENCY)
 
+                balance = v['balance']
+                current_rate = book['currency_rates'][key]
+
                 if key in book['currency_basket']:
-                    rate = book['currency_basket'][key]['rates']['buy']['weighted']
+                    weighted_buying_rate = book['currency_basket'][key]['rates']['buy']['weighted']
                     in_default_currency = v['in_default_currency']
+                else:
+                    weighted_buying_rate = current_rate
+
+                worth_current = (balance * current_rate)
+
+                gain_percent = (((current_rate / weighted_buying_rate) - 1) * 100)
+
                 if in_default_currency:
-                    r = (in_default_currency * SPREAD)
-                    message += ' ~ {} {} at {} {}/{} buying rate'.format(
+                    message += ' ~ {} {} at {} {} rate ({}% vs {} {})'.format(
                         colorise_if_possible(
-                            COLOR_BALANCE(r),
-                            '{:7.2f}'.format(r),
-                        ),
+                            COLOR_BALANCE(worth_current),
+                            '{:8.2f}'.format(worth_current)),
                         DEFAULT_CURRENCY,
                         colorise_if_possible(
                             COLOR_EXCHANGE_RATE,
-                            '{:.4f}'.format(rate),
-                        ),
-                        v['currency'],
-                        DEFAULT_CURRENCY,
+                            '{:6.4f}'.format(current_rate)),
+                        '/'.join(key),
+                        colorise_if_possible(
+                            COLOR_BALANCE(gain_percent),
+                            '{:7.4f}'.format(gain_percent)),
+                        colorise_if_possible(
+                            COLOR_EXCHANGE_RATE,
+                            '{:6.4f}'.format(weighted_buying_rate)),
+                        '/'.join(key),
                     )
 
             if kind == ledger.constants.ACCOUNT_EQUITY_T:
@@ -748,29 +760,14 @@ class Book:
                 'rates': [],
                 'ops': [],
             })
-        for each in currency_ops:
+        is_from_default_currency = (lambda e:
+                e['src']['currency'] == DEFAULT_CURRENCY)
+        for each in filter(is_from_default_currency, currency_ops):
             src = each['src']
             dst = each['dst']
             key = (dst['currency'], src['currency'],)
-            if key[1] == DEFAULT_CURRENCY:
-                currency_basket[key]['rates'].append(each['rate'])
-                currency_basket[key]['ops'].append(each)
-            else:
-                key = (key[1], key[0],)
-                if key not in currency_basket:
-                    currency_basket.setdefault(key, {
-                        'rates': [],
-                        'ops': [],
-                    })
-                currency_basket[key]['rates'].append(each['rate'])
-                currency_basket[key]['ops'].append({
-                    'src': each['dst'],
-                    'dst': {
-                        'currency': each['src']['currency'],
-                        'amount': -each['src']['amount'],
-                    },
-                    'rate': each['rate'],
-                })
+            currency_basket[key]['rates'].append(each['rate'])
+            currency_basket[key]['ops'].append(each)
 
         book['currency_basket'] = currency_basket
         for key, item in currency_basket.items():
@@ -808,8 +805,7 @@ class Book:
             if key not in book['currency_basket']:
                 continue
             rate = book['currency_basket'][key]['rates']['buy']['weighted']
-            per_amount = (100 if account['currency'] == 'JPY' else 1)
-            in_default_currency = account['balance'] * (rate / per_amount)
+            in_default_currency = account['balance'] * rate
             account['in_default_currency'] = in_default_currency
 
         for name, account in book['accounts']['liability'].items():
@@ -821,8 +817,7 @@ class Book:
             if key not in book['currency_basket']:
                 continue
             rate = book['currency_basket'][key]['rates']['buy']['weighted']
-            per_amount = (100 if account['currency'] == 'JPY' else 1)
-            in_default_currency = account['balance'] * (rate / per_amount)
+            in_default_currency = account['balance'] * rate
             account['in_default_currency'] = in_default_currency
 
         for name, account in book['accounts']['equity'].items():
@@ -944,12 +939,11 @@ class Book:
             # match the value presented by real bank account. Spreads on
             # individual currencies are not matched as there is no automated way
             # to fetch them.
-            f = (foreign_currencies * SPREAD)
-            t = (total_balance + f)
+            t = (total_balance + foreign_currencies)
             m += ' (~{t} {c}, ~{f} {c} in foreign currencies)'.format(
                 f = colorise_if_possible(
-                    COLOR_BALANCE(f),
-                    '{:.2f}'.format(f),
+                    COLOR_BALANCE(foreign_currencies),
+                    '{:.2f}'.format(foreign_currencies),
                 ),
                 t = colorise_if_possible(
                     COLOR_BALANCE(t),
