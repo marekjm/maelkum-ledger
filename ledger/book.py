@@ -1009,6 +1009,11 @@ class Book:
                 account['shares'].values()
             )))))
 
+            companies_held = len(list(
+                filter(lambda k: (account['shares'][k]['shares'] != 0),
+                account['shares'].keys(),
+            )))
+
             oneline_report = '  {} => {} {}'.format(
                 account_name,
                 colorise_if_possible(
@@ -1025,9 +1030,8 @@ class Book:
                 colorise_if_possible(
                     COLOR_BALANCE(percent),
                     '{}{:.4f}'.format(gain_sign, percent)),
-                colorise_if_possible(COLOR_SHARE_WORTH,
-                    len(account['shares'].keys())),
-                ('y' if len(account['shares'].keys()) == 1 else 'ies'),
+                colorise_if_possible(COLOR_SHARE_WORTH, companies_held),
+                ('y' if companies_held == 1 else 'ies'),
                 (
                     ', {} with loss'.format(colorise_if_possible(
                         COLOR_EXPENSES, companies_with_loss))
@@ -1036,6 +1040,11 @@ class Book:
                 ),
             )
             print(oneline_report)
+
+            if not account['shares']:
+                # If there are no shares the code reporting them has no reason
+                # to run so let's just return early.
+                return
 
             company_name_length = max(map(len, account['shares'].keys()))
             shares_length = max(map(lambda each: len(str(each['shares'])),
