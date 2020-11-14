@@ -47,6 +47,7 @@ KEYWORD_BALANCE = 'balance'
 KEYWORD_CURRENCY_RATES = 'currency_rates'
 
 ACCEPTED_CURRENCIES = {
+    'CAD',
     'CHF',
     'CZK',
     'EUR',
@@ -486,7 +487,7 @@ class Parser:
                             'value': { 'currency': fee_currency, 'amount': fee, },
                             'tags': [],
                         })
-                    if source_currency != dest_currency:
+                    if (source_currency != dest_currency):
                         rate = list(
                             map(lambda x: x[0],
                             filter(lambda x: x[0].startswith('rate:'),

@@ -51,6 +51,13 @@ def is_own_account(a):
     return any(map(mx, ACCOUNT_T))
 
 
+def value_in_default_currency(transaction, book):
+    IN_DEFAULT_CURRENCY_KEY = 'in_default_currency'
+    if IN_DEFAULT_CURRENCY_KEY in transaction:
+        return transaction[IN_DEFAULT_CURRENCY_KEY]
+    return decimal.Decimal('0.0')
+
+
 class Book:
     @staticmethod
     def output_table(expenses, revenues, column, include_percentage = False):
@@ -334,10 +341,20 @@ class Book:
             elif spending_target[0] == '$':
                 available_budgeted_funds = spending_target[1] - total_expenses
             available_budgeted_funds_per_day = (available_budgeted_funds / days_left_in_this_month)
+            fmt = '{:7.2f}'
             Book.screen.print(column = column, text = '  Daily expense cap to meet budget: {} {}'.format(
                 colorise_if_possible(
                     COLOR_BALANCE(available_budgeted_funds_per_day),
-                    '{:.2f}'.format(available_budgeted_funds_per_day),
+                    fmt.format(available_budgeted_funds_per_day),
+                ),
+                DEFAULT_CURRENCY,
+            ))
+            Book.screen.print(
+                column = column,
+                text = '  Total expense cap to meet budget: {} {}'.format(
+                colorise_if_possible(
+                    COLOR_BALANCE(available_budgeted_funds),
+                    fmt.format(available_budgeted_funds),
                 ),
                 DEFAULT_CURRENCY,
             ))
@@ -454,7 +471,16 @@ class Book:
             if each[1]['if_negative'] == False:
                 return True
             return False
-        flt = lambda seq: filter(flt_if_negative, filter(flt_if_overview, seq))
+        def flt_if_positive(each):
+            if 'if_positive' not in each[1]:
+                return True
+            if each[1]['if_positive'] == False:
+                return True
+            return False
+        flt = lambda seq: filter(flt_if_positive,
+            filter(flt_if_negative,
+            filter(flt_if_overview,
+            seq)))
 
         key = lambda each: each[0]
         return (
@@ -515,7 +541,9 @@ class Book:
 
                 if key in book['currency_basket']:
                     weighted_buying_rate = book['currency_basket'][key]['rates']['buy']['weighted']
-                    in_default_currency = v['in_default_currency']
+                    in_default_currency = value_in_default_currency(
+                        v, book
+                    )
                 else:
                     weighted_buying_rate = current_rate
 
@@ -939,7 +967,35 @@ class Book:
                 if each['currency'] != main_currency:
                     # FIXME Apply conversion rates and notify that the balance
                     # is only estimated.
-                    foreign_currencies += each['in_default_currency']
+                    foreign_currencies += value_in_default_currency(
+                        each, book
+                    )
+                    estimated = True
+                    continue
+                total_balance += value
+
+        return (total_balance, foreign_currencies, estimated)
+
+    @staticmethod
+    def calculate_cash_balance(book):
+        total_balance = decimal.Decimal('0.0')
+        foreign_currencies = decimal.Decimal('0.0')
+        estimated = False
+
+        accounts = book['accounts']
+
+        main_account_kind, main_account_name = Book.get_main_account(book).split('/')
+        main_currency = accounts[main_account_kind][main_account_name]['currency']
+
+        for kind in ('asset', 'liability',):
+            for each in accounts[kind].values():
+                value = each['balance']
+                if each['currency'] != main_currency:
+                    # FIXME Apply conversion rates and notify that the balance
+                    # is only estimated.
+                    foreign_currencies += value_in_default_currency(
+                        each, book
+                    )
                     estimated = True
                     continue
                 total_balance += value
@@ -948,34 +1004,65 @@ class Book:
 
     @staticmethod
     def report_balances(book):
-        total_balance, foreign_currencies, is_estimated = Book.calculate_total_balance(book)
-        m = '{} on all {} accounts: {} {}'.format(
-            colorise_if_possible(COLOR_PERIOD_NAME, 'Balance'),
-            Book.no_of_accounts(book),
-            colorise_if_possible(
-                COLOR_BALANCE(total_balance),
-                '{:.2f}'.format(total_balance),
-            ),
-            DEFAULT_CURRENCY,
-        )
-        if foreign_currencies:
-            # Mean spread accross all currencies in the basket. Calculated to
-            # match the value presented by real bank account. Spreads on
-            # individual currencies are not matched as there is no automated way
-            # to fetch them.
-            t = (total_balance + foreign_currencies)
-            m += ' (~{t} {c}, ~{f} {c} in foreign currencies)'.format(
-                f = colorise_if_possible(
-                    COLOR_BALANCE(foreign_currencies),
-                    '{:.2f}'.format(foreign_currencies),
+        if True:  # report cold, hard cash balance (ie, readily available reserves)
+            total_balance, foreign_currencies, is_estimated = Book.calculate_cash_balance(book)
+            m = '{} on all {} accounts: {} {}'.format(
+                colorise_if_possible(COLOR_PERIOD_NAME, 'Reserve'),
+                (Book.no_of_accounts(book, ACCOUNT_ASSET_T) +
+                    Book.no_of_accounts(book, ACCOUNT_LIABILITY_T)),
+                colorise_if_possible(
+                    COLOR_BALANCE(total_balance),
+                    '{:.2f}'.format(total_balance),
                 ),
-                t = colorise_if_possible(
-                    COLOR_BALANCE(t),
-                    '{:.2f}'.format(t),
-                ),
-                c = DEFAULT_CURRENCY,
+                DEFAULT_CURRENCY,
             )
-        print(m)
+            if foreign_currencies:
+                # Mean spread accross all currencies in the basket. Calculated to
+                # match the value presented by real bank account. Spreads on
+                # individual currencies are not matched as there is no automated way
+                # to fetch them.
+                t = (total_balance + foreign_currencies)
+                m += ' (~{t} {c}, ~{f} {c} in foreign currencies)'.format(
+                    f = colorise_if_possible(
+                        COLOR_BALANCE(foreign_currencies),
+                        '{:.2f}'.format(foreign_currencies),
+                    ),
+                    t = colorise_if_possible(
+                        COLOR_BALANCE(t),
+                        '{:.2f}'.format(t),
+                    ),
+                    c = DEFAULT_CURRENCY,
+                )
+            print(m)
+        if True:  # report total balance
+            total_balance, foreign_currencies, is_estimated = Book.calculate_total_balance(book)
+            m = '{} on all {} accounts: {} {}'.format(
+                colorise_if_possible(COLOR_PERIOD_NAME, 'Balance'),
+                Book.no_of_accounts(book),
+                colorise_if_possible(
+                    COLOR_BALANCE(total_balance),
+                    '{:.2f}'.format(total_balance),
+                ),
+                DEFAULT_CURRENCY,
+            )
+            if foreign_currencies:
+                # Mean spread accross all currencies in the basket. Calculated to
+                # match the value presented by real bank account. Spreads on
+                # individual currencies are not matched as there is no automated way
+                # to fetch them.
+                t = (total_balance + foreign_currencies)
+                m += ' (~{t} {c}, ~{f} {c} in foreign currencies)'.format(
+                    f = colorise_if_possible(
+                        COLOR_BALANCE(foreign_currencies),
+                        '{:.2f}'.format(foreign_currencies),
+                    ),
+                    t = colorise_if_possible(
+                        COLOR_BALANCE(t),
+                        '{:.2f}'.format(t),
+                    ),
+                    c = DEFAULT_CURRENCY,
+                )
+            print(m)
         Book.report_asset_balance(book)
         Book.report_liability_balance(book)
         Book.report_equity_balance(book)
