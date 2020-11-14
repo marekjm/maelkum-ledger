@@ -37,6 +37,7 @@ def is_own_account(a):
 TX_TRANSFER_T = 'tx'
 TX_EXPENSE_T = 'ex'
 TX_REVENUE_T = 'rx'
+TX_DIVIDEND_T = 'dividend'
 
 KEYWORD_END = 'end'
 KEYWORD_WITH = 'with'
@@ -74,7 +75,7 @@ class Parser:
 
         if mx(KEYWORD_OPEN):
             return text.split()
-        elif mx(TX_TRANSFER_T) or mx(TX_EXPENSE_T) or mx(TX_REVENUE_T):
+        elif mx(TX_TRANSFER_T) or mx(TX_EXPENSE_T) or mx(TX_REVENUE_T) or mx(TX_DIVIDEND_T):
             return text.split()
         elif mx('asset:') or (text == 'end') or mx('balance:'):
             return text.split()
@@ -124,8 +125,9 @@ class Parser:
                 add_to = 'body'
                 continue
 
-            if each[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T, KEYWORD_OPEN, KEYWORD_MATCH,
-                    KEYWORD_BALANCE, KEYWORD_CURRENCY_RATES):
+            if each[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T,
+                    TX_DIVIDEND_T, KEYWORD_OPEN, KEYWORD_MATCH, KEYWORD_BALANCE,
+                    KEYWORD_CURRENCY_RATES):
                 current['head'] = each
                 continue
 
@@ -195,6 +197,9 @@ class Parser:
                 }
                 if account_type == ledger.constants.ACCOUNT_EQUITY_T:
                     account_data['shares'] = {}
+                    # this is just a list of all companies held at the current
+                    # moment in time
+                    account_data['companies'] = set()
                 book_contents['accounts'][account_type][account_name] = account_data
 
             if head[0] == KEYWORD_MATCH:
@@ -244,7 +249,8 @@ class Parser:
                     rates[currency_pair] = decimal.Decimal(rate)
                 continue
 
-            if head[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T,):
+            if head[0] in (TX_TRANSFER_T, TX_EXPENSE_T, TX_REVENUE_T,
+                    TX_DIVIDEND_T,):
                 accounts = [
                     ((OWN_ACCOUNT_T, a.rsplit(maxsplit = 2),)
                      if is_own_account(a)
@@ -448,12 +454,20 @@ class Parser:
                                 source_account,
                                 dest_account,
                             ))
+                        company = any_shares[0]
                         value_in_shares = {
-                            'company': any_shares[0],
+                            'company': company,
                             'shares': decimal.Decimal(any_shares[1]),
                             'fee': { 'currency': fee_currency, 'amount': fee, },
                         }
                         value['shares'] = value_in_shares
+                        eas = book_contents['accounts'][ledger.book.ACCOUNT_EQUITY_T]
+                        this_account = eas[(
+                            dest_account
+                            if dest_account.startswith(ledger.book.ACCOUNT_EQUITY_T)
+                            else source_account
+                        ).split('/')[1]]
+                        this_account['companies'].add(company)
 
                     for pat in patterns:
                         if pat['what'] != tx_kind:
@@ -588,6 +602,78 @@ class Parser:
                             'only_if_positive': False,
                             'main': False,
                         }
+                elif tx_kind == TX_DIVIDEND_T:
+                    is_equity = lambda a: (a[1][0].startswith(
+                        ledger.book.ACCOUNT_EQUITY_T))
+                    is_asset = lambda a: (a[1][0].startswith(
+                        ledger.book.ACCOUNT_ASSET_T))
+                    source_account = list(filter(is_equity, accounts))
+                    dest_account = list(filter(is_asset, accounts))
+
+                    if not source_account:
+                        raise Exception('{}: no source account found for dividend'.format(
+                            head[1],
+                        ))
+                    source_company = source_account[0][1][1]
+                    source_account = source_account[0][1][0]
+
+                    if not dest_account:
+                        raise Exception('{}: no destination account found for dividend'.format(
+                            head[1],
+                        ))
+                    dest_account = dest_account[0][1]
+
+                    currency = dest_account[2]
+                    if currency not in ACCEPTED_CURRENCIES:
+                        raise Exception('invalid currency: {}'.format(
+                            currency,
+                        ))
+
+                    value = {
+                        'currency': currency,
+                        'amount': convert(dest_account[1]),
+                    }
+                    dest_account = dest_account[0]
+
+                    book_contents['transactions'].append({
+                        'type': 'dividend',
+                        'source': (source_account, source_company),
+                        'destination': dest_account,
+                        'value': value,
+                        'tags': [],
+                    })
+                    book_contents['transactions'][-1]['timestamp'] = Parser.parse_timestamp(head[1])
+                    book_contents['transactions'].append({
+                        'type': 'revenue',
+                        'source': source_company,
+                        'destination': dest_account,
+                        'value': value,
+                        'tags': [],
+                    })
+
+                    asset_accounts = book_contents['accounts'][ledger.book.ACCOUNT_ASSET_T]
+                    dest_account = dest_account.split('/')[1]
+                    if dest_account not in asset_accounts:
+                        raise Exception('{}: asset account does not exist: {}'.format(
+                            head[1],
+                            dest_account,
+                        ))
+
+                    equity_accounts = book_contents['accounts'][ledger.book.ACCOUNT_EQUITY_T]
+                    source_account = source_account.split('/')[1]
+                    if source_account not in equity_accounts:
+                        raise Exception('{}: equity account does not exist: {}'.format(
+                            head[1],
+                            source_account,
+                        ))
+
+                    equity_account = equity_accounts[source_account]
+                    if source_company not in equity_account['companies']:
+                        raise Exception('{}: company {} does not exist in account: {}'.format(
+                            head[1],
+                            source_company,
+                            source_account,
+                        ))
 
                 book_contents['transactions'][-1]['timestamp'] = Parser.parse_timestamp(head[1])
 

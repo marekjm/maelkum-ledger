@@ -11,7 +11,7 @@ endif
 syntax match ledgerComment      "^\s*\zs#.*$"
 
 syntax keyword ledgerPreProc    end begin open match balance set currency_rates
-syntax keyword ledgerPreProc    tx ex rx
+syntax keyword ledgerPreProc    tx ex rx dividend
 syntax keyword ledgerKeyword    with
 syntax keyword ledgerOperator   account budget
 syntax keyword ledgerStatement  asset liability equity

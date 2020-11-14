@@ -629,6 +629,25 @@ class Book:
                 account_kind, account_id = dst.split('/')
 
                 book['accounts'][account_kind][account_id]['balance'] += each['value']['amount']
+            elif each['type'] == 'dividend':
+                dst = each['destination']
+                if not (dst.startswith('asset/') or dst.startswith('liability/')):
+                    continue
+                dst_account_kind, dst_account_id = dst.split('/')
+
+                src_account, div_company = each['source']
+                src_account_kind, src_account_id = src_account.split('/')
+
+                src_account = book['accounts'][ACCOUNT_EQUITY_T][src_account_id]
+                if div_company not in src_account['shares']:
+                    raise Exception('{}: company {} does not exist in account: {}'.format(
+                        each['timestamp'].strftime('%Y-%m-%dT%H:%M:%S'),
+                        div_company,
+                        (src_account_kind + '/' + src_account_id),
+                    ))
+
+                company_account = src_account['shares'][div_company]
+                company_account['dividends'] += each['value']['amount']
             elif each['type'] == 'transfer':
                 source = each['source']
                 if not is_own_account(source):
@@ -695,6 +714,7 @@ class Book:
                             'txs': [],
                             'shares': decimal.Decimal(),
                             'fees': decimal.Decimal(),
+                            'dividends': decimal.Decimal(),
                             'price_per_share': decimal.Decimal(),
                         }
 
@@ -876,11 +896,14 @@ class Book:
             account['balance'] = decimal.Decimal()
             account['paid'] = decimal.Decimal()
             account['value'] = decimal.Decimal()
+            account['dividends'] = decimal.Decimal()
+            account['worth'] = decimal.Decimal()
 
             for company, shares in account['shares'].items():
                 shares_no = shares['shares']
                 share_price = shares['price_per_share']
                 fees = shares['fees']
+                dividends = shares['dividends']
 
                 # Here is the total money that you had to pay to obtain the
                 # shares. It is the source price because what you paid not only
@@ -919,30 +942,49 @@ class Book:
                 # share and multiply it by the amount of shares you own.
                 worth = (shares_no * share_price)
 
-                # The value of shares for you is a little bit less than what
-                # they are worth, though. Remember that you paid some fees to
-                # acquire them - this necessarily pulls their value down a bit.
-                value = (worth - fees)
+                # The value of shares for you is not exactly what they are worth
+                # on the market. Remember that you paid some fees to acquite
+                # them, and that they may have yielded you some dividends.
+                value = (worth - fees + dividends)
 
                 # Account's balance tells you the worth of your account and is
                 # not concerned with any fees that you may have incurred while
                 # acquiting the wealth.
                 #
-                # The balance should not be modified if there are not shares for
+                # The balance should not be modified if there are no shares for
                 # a company. This means that all shares were sold and including
                 # their cost in the report would be hugely misleading.
-                account['balance'] += (worth if shares_no else decimal.Decimal(0))
-                account['paid'] += (paid if shares_no else decimal.Decimal(0))
-                account['value'] += (value if shares_no else decimal.Decimal(0))
+                account['balance'] += (worth
+                    if shares_no
+                    else decimal.Decimal(0))
+                account['paid'] += (paid
+                    if shares_no
+                    else decimal.Decimal(0))
+                account['value'] += (value
+                    if shares_no
+                    else decimal.Decimal(0))
+                account['dividends'] += dividends
+
+                tr_nominal = (worth + paid + dividends)
+                tr_percent = -((tr_nominal / paid) * 100)
+                tr = {
+                    'relevant': (dividends != 0),
+                    'nominal': tr_nominal,
+                    'percent': tr_percent,
+                }
 
                 shares['balance'] = worth
                 shares['paid'] = paid
                 shares['value'] = value
+                shares['total_return'] = tr
 
-            nominal_profit = (account['balance'] + account['paid'])
+            # Include dividends in profit calculations. If the shares went down,
+            # but the dividends were healthy then you are still OK.
+            nominal_value = (account['balance'] + account['dividends'])
+            nominal_profit = (nominal_value + account['paid'])
             percent_profit = decimal.Decimal()
             if account['paid']:  # beware zero division!
-                percent_profit = (((account['balance'] / -account['paid'])) - 1) * 100
+                percent_profit = (((nominal_value / -account['paid'])) - 1) * 100
             account['profit'] = {
                 'nominal': nominal_profit,
                 'percent': percent_profit,
@@ -1090,10 +1132,10 @@ class Book:
             percent = gain['percent']
             gain_sign = ('+' if percent > 0 else '')
             companies_with_loss = len(list(
-                filter(lambda x: x < 0,
-                map(lambda each: (each['balance'] + each['paid']),
-                filter(lambda each: each['shares'],
-                account['shares'].values()
+                filter(lambda x: (x < 0),
+                map(lambda x: x['total_return']['nominal'],
+                filter(lambda x: x['shares'],
+                account['shares'].values(),
             )))))
 
             companies_held = len(list(
@@ -1154,6 +1196,7 @@ class Book:
                 worth = company['balance']
                 value = company['value']
                 paid = company['paid']
+                dividends = company['dividends']
                 price_per_share = company['price_per_share']
                 price_per_share_avg = abs(paid / no_of_shares)
 
@@ -1162,13 +1205,13 @@ class Book:
 
                 gain_nominal_per_share = (gain_nominal / no_of_shares)
 
-                company_report = '    {} : '.format(
+                header = '    {}'.format(
                     colorise_if_possible(
-                        COLOR_BALANCE(gain_nominal),
+                        COLOR_BALANCE(company['total_return']['nominal']),
                         company_name.ljust(company_name_length),
                     ),
                 )
-                company_report += '{} * {} = {}'.format(
+                market_worth = '{} * {} = {}'.format(
                     colorise_if_possible(
                         COLOR_SHARE_PRICE,
                         '{{:{}.4f}}'.format(share_price_length).format(price_per_share)),
@@ -1179,18 +1222,17 @@ class Book:
                         COLOR_SHARE_WORTH,
                         '{{:{}.2f}}'.format(shares_value_length).format(worth)),
                 )
-
-                company_report += ' ({} {}, {}%; {}{} {})'.format(
+                captial_gain = '{} {}, {}% @ {}{} {}'.format(
                     colorise_if_possible(
                         COLOR_BALANCE(gain_nominal),
-                        '{:7.2f}'.format(gain_nominal)),
+                        '{:8.2f}'.format(gain_nominal)),
                     account['currency'],
                     colorise_if_possible(
                         COLOR_BALANCE(gain_percent),
                         '{:8.4f}'.format(gain_percent)),
                     colorise_if_possible(
                         COLOR_SHARE_PRICE_AVG,
-                        '{:7.2f}'.format(price_per_share_avg)),
+                        '{:.2f}'.format(price_per_share_avg)),
                     colorise_if_possible(
                         COLOR_BALANCE(gain_nominal_per_share),
                         '{}{:.4f}'.format(
@@ -1199,7 +1241,26 @@ class Book:
                         )),
                     account['currency'],
                 )
+                total_return = ''
+                if company['total_return']['relevant']:
+                    tr_nominal = company['total_return']['nominal']
+                    tr_percent = company['total_return']['percent']
+                    total_return = ', return {} {}, {}%'.format(
+                        colorise_if_possible(
+                            COLOR_BALANCE(tr_nominal),
+                            '{:.2f}'.format(tr_nominal)),
+                        account['currency'],
+                        colorise_if_possible(
+                            COLOR_BALANCE(tr_percent),
+                            '{:.2f}'.format(tr_percent)),
+                    )
 
+                company_report = '{} : {} ({}){}'.format(
+                    header,
+                    market_worth,
+                    captial_gain,
+                    total_return,
+                )
                 print(company_report)
 
     @staticmethod
