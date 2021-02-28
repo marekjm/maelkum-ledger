@@ -11,7 +11,7 @@ install:
 	mkdir -p $(BIN_DIR)
 	cp -v ./ui.py $(BIN_DIR)/maelkum-ledger
 	chmod +x $(BIN_DIR)/maelkum-ledger
-	sed -i "s/__commit__ = 'HEAD'/__commit__ = '$(shell git rev-parse HEAD)'/" $(BIN_DIR)/maelkum-ledger
+	sed -i "s/__commit__ = 'HEAD'/__commit__ = '$(shell git rev-parse HEAD)$(shell git status | grep 'Changes not staged for commit' | sed 's/..*/-dirty/')'/" $(LIB_DIR)/ledger/__init__.py
 	if [[ -d ~/.config/nvim ]]; then cp -v ./ledger.vim ~/.config/nvim/syntax; fi
 
 watch-install:
