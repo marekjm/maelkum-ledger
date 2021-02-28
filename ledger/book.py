@@ -1113,6 +1113,8 @@ class Book:
     @staticmethod
     def report_equities(book):
         no_of_accounts = Book.no_of_accounts(book, ACCOUNT_EQUITY_T)
+        if no_of_accounts == 0:
+            return
         m = '{} of {} equity account{}'.format(
             colorise_if_possible(COLOR_PERIOD_NAME, 'State'),
             no_of_accounts,
