@@ -23,82 +23,73 @@ import ledger
 # ∘
 # ∙
 
+ACCOUNT_ASSET_T = 'asset'
+ACCOUNT_LIABILITY_T = 'liability'
+ACCOUNT_EQUITY_T = 'equity'
+ACCOUNT_TYPES = (
+    ACCOUNT_ASSET_T,
+    ACCOUNT_LIABILITY_T,
+    ACCOUNT_EQUITY_T,
+)
 
-def report_total_reserves(accounts, book, default_currency):
+def report_total_impl(period, account_types, accounts, book, default_currency):
     reserves_default = decimal.Decimal()
     reserves_foreign = decimal.Decimal()
-    for _, each in accounts['asset'].items():
-        if each['currency'] == default_currency:
-            reserves_default += each['balance']
-        else:
-            pass # FIXME calculate value in default currency
+    for t in account_types:
+        for name, acc in accounts[t].items():
+            if acc['currency'] == default_currency:
+                reserves_default += acc['balance']
+            else:
+                _, currency_basket = book
+
+                pair = (acc['currency'], default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, acc['currency'],)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        print(currency_basket)
+                        fmt = 'no currency pair {}/{} for {} account named {}'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            ledger.util.colors.colorise(
+                                'white',
+                                acc['~'].text[0].location,
+                            ),
+                            ledger.util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            ledger.util.colors.colorise(
+                                'white',
+                                acc['currency'],
+                            ),
+                            ledger.util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                            t,
+                            ledger.util.colors.colorise(
+                                'white',
+                                name,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    reserves_foreign += (acc['balance'] / rate)
+                else:
+                    reserves_foreign += (acc['balance'] * rate)
 
     reserves_total = (reserves_default + reserves_foreign)
 
-    no_of_asset_accounts = len(accounts['asset'].keys())
-
-    fmt = '{} on all {} account(s): {} {}'
-    if reserves_foreign:
-        fmt += ' (~{:.2f} {}, ~{:.2f} {} in foreign currencies)'
-
-    print(fmt.format(
-        ledger.util.colors.colorise(
-            ledger.util.colors.COLOR_PERIOD_NAME,
-            'Reserve',
-        ),
-        no_of_asset_accounts,
-        ledger.util.colors.colorise_balance(reserves_total),
-        default_currency,
-    ))
-
-def report_total_balances(accounts, book, default_currency):
-    reserves_default = decimal.Decimal()
-    reserves_foreign = decimal.Decimal()
-    for _, acc in accounts['asset'].items():
-        if acc['currency'] == default_currency:
-            reserves_default += acc['balance']
-        else:
-            _, currency_basket = book
-
-            pair = (acc['currency'], default_currency,)
-            try:
-                rate = currency_basket['rates'][pair]
-            except KeyError:
-                print(currency_basket)
-                fmt = 'no currency pair {}/{} for {} account named {}'
-                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                    ledger.util.colors.colorise(
-                        'white',
-                        acc['~'].text[0].location,
-                    ),
-                    ledger.util.colors.colorise(
-                        'red',
-                        'error',
-                    ),
-                    ledger.util.colors.colorise(
-                        'white',
-                        acc['currency'],
-                    ),
-                    ledger.util.colors.colorise(
-                        'white',
-                        default_currency,
-                    ),
-                    t,
-                    ledger.util.colors.colorise(
-                        'white',
-                        name,
-                    ),
-                ))
-                exit(1)
-
-            rate = rate.rate
-            reserves_foreign += (acc['balance'] * rate)
-
-    reserves_total = (reserves_default + reserves_foreign)
-
-    no_of_accounts = (len(accounts['asset'].keys()) +
-        len(accounts['liability'].keys()) +
-        len(accounts['equity'].keys()))
+    no_of_accounts = 0
+    for t in account_types:
+        no_of_accounts += len(accounts[t].keys())
 
     fmt = '{} on all {} account(s): '
     if reserves_foreign:
@@ -109,7 +100,7 @@ def report_total_balances(accounts, book, default_currency):
     print(fmt.format(
         ledger.util.colors.colorise(
             ledger.util.colors.COLOR_PERIOD_NAME,
-            'Balance',
+            period,
         ),
         no_of_accounts,
         ledger.util.colors.colorise_balance(
@@ -122,13 +113,22 @@ def report_total_balances(accounts, book, default_currency):
         default_currency,
     ))
 
-    ACCOUNT_ASSET_T = 'asset'
-    ACCOUNT_LIABILITY_T = 'liability'
-    ACCOUNT_EQUITY_T = 'equity'
-    ACCOUNT_TYPES = (
-        ACCOUNT_ASSET_T,
-        ACCOUNT_LIABILITY_T,
-        ACCOUNT_EQUITY_T,
+def report_total_reserves(accounts, book, default_currency):
+    report_total_impl(
+        'Reserve',
+        (ACCOUNT_ASSET_T, ACCOUNT_LIABILITY_T,),
+        accounts,
+        book,
+        default_currency,
+    )
+
+def report_total_balances(accounts, book, default_currency):
+    report_total_impl(
+        'Balance',
+        ACCOUNT_TYPES,
+        accounts,
+        book,
+        default_currency,
     )
 
     longest_account_name = 0
@@ -136,8 +136,16 @@ def report_total_balances(accounts, book, default_currency):
         for a in accounts[t].keys():
             longest_account_name = max(longest_account_name, len(a))
 
+    def sort_main_on_top(accounts):
+        keys = sorted(accounts.keys())
+        keys = sorted(
+            keys,
+            key = lambda k: ('main' in accounts[k]['tags']),
+            reverse = True,
+        )
+        return keys
     for t in ACCOUNT_TYPES:
-        for name in sorted(accounts[t].keys()):
+        for name in sort_main_on_top(accounts[t]):
             acc = accounts[t][name]
 
             m = ''
@@ -156,38 +164,48 @@ def report_total_balances(accounts, book, default_currency):
                 _, currency_basket = book
 
                 pair = (acc['currency'], default_currency,)
+                rev = False
                 try:
                     rate = currency_basket['rates'][pair]
                 except KeyError:
-                    print(currency_basket)
-                    fmt = 'no currency pair {}/{} for {} account named {}'
-                    sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                        ledger.util.colors.colorise(
-                            'white',
-                            acc['~'].text[0].location,
-                        ),
-                        ledger.util.colors.colorise(
-                            'red',
-                            'error',
-                        ),
-                        ledger.util.colors.colorise(
-                            'white',
-                            acc['currency'],
-                        ),
-                        ledger.util.colors.colorise(
-                            'white',
-                            default_currency,
-                        ),
-                        t,
-                        ledger.util.colors.colorise(
-                            'white',
-                            name,
-                        ),
-                    ))
-                    exit(1)
+                    try:
+                        pair = (default_currency, acc['currency'],)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        print(currency_basket)
+                        fmt = 'no currency pair {}/{} for {} account named {}'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            ledger.util.colors.colorise(
+                                'white',
+                                acc['~'].text[0].location,
+                            ),
+                            ledger.util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            ledger.util.colors.colorise(
+                                'white',
+                                acc['currency'],
+                            ),
+                            ledger.util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                            t,
+                            ledger.util.colors.colorise(
+                                'white',
+                                name,
+                            ),
+                        ))
+                        exit(1)
 
                 rate = rate.rate
-                balance_in_default = (balance_raw * rate)
+                if rev:
+                    balance_in_default = (balance_raw / rate)
+                else:
+                    balance_in_default = (balance_raw * rate)
+
                 # FIXME display % gain/loss depending on exchange rate
                 fmt = ' ≅ {} {} at {} {}/{} rate'
                 m += fmt.format(
@@ -234,7 +252,12 @@ def main(args):
     # be aware of - default currency, budger levels, etc.
     for each in book_ir:
         if type(each) is ledger.ir.Configuration_line:
-            pass
+            if each.key == 'default-currency':
+                default_currency = str(each.value)
+            elif each.key == 'budget': # FIXME TODO
+                pass
+            else:
+                raise
 
     # Then, set up accounts to be able to track balances and verify that
     # transactions refer to recognised accounts.

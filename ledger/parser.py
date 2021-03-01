@@ -31,7 +31,7 @@ def parse_open_account(lines):
         source.append(lines[2])
         i = 3
         while str(lines[i]) != 'end':
-            tags.append(str(lines[i]))
+            tags.append(str(lines[i]).strip())
             source.append(lines[i])
             i += 1
         source.append(lines[i])
