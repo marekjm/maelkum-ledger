@@ -241,9 +241,9 @@ def parse_revenue_record(lines):
     outs = []
     for each in accounts:
         if each > 0:
-            ins.append(each)
-        else:
             outs.append(each)
+        else:
+            ins.append(each)
 
     return len(source), ir.Revenue_tx(
         source,

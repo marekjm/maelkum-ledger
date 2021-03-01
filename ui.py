@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import datetime
 import decimal
 import os
 import sys
@@ -232,13 +233,17 @@ def main(args):
 
     book_main = args[0]
     book_lines = ledger.loader.load(book_main)
-    print('\n'.join(map(repr, book_lines)))
+    # print('\n'.join(map(repr, book_lines)))
 
     book_ir = ledger.parser.parse(book_lines)
-    print('{} item(s):'.format(len(book_ir)))
-    print('\n'.join(map(repr, book_ir)))
+    # print('{} item(s):'.format(len(book_ir)))
+    # print('\n'.join(map(repr, book_ir)))
 
-    book_ir = sorted(book_ir, key = lambda each: each.timestamp)
+    def sorting_key(item):
+        if isinstance(item, ledger.ir.Transaction_record):
+            return item.effective_date()
+        return item.timestamp
+    book_ir = sorted(book_ir, key = sorting_key)
     print('chronologically sorted item(s):'.format(len(book_ir)))
     print('\n'.join(map(repr, book_ir)))
 
@@ -310,6 +315,11 @@ def main(args):
     book = (book_ir, currency_basket,)
 
     # Then, prepare and display a report.
+    ledger.reporter.report_today(book, default_currency)
+    ledger.reporter.report_yesterday(book, default_currency)
+    ledger.reporter.report_this_month(book, default_currency)
+    ledger.reporter.report_this_year(book, default_currency)
+
     report_total_reserves(accounts, book, default_currency)
     report_total_balances(accounts, book, default_currency)
 

@@ -1,5 +1,7 @@
 import datetime
 
+from . import constants
+
 
 class Item:
     def __init__(self, text, timestamp):
@@ -39,6 +41,25 @@ class Transaction_record(Item):
         self.ins = ins
         self.outs = outs
         self.tags = tags
+
+        self._effective_date = None
+
+    def effective_date(self):
+        if self._effective_date:
+            return self._effective_date
+        for each in self.tags:
+            k, v = str(each).strip().split(':', maxsplit = 1)
+            if k == 'effective_date':
+                ed = datetime.datetime.strptime(
+                    v.strip(),
+                    constants.TIMESTAMP_FORMAT,
+                )
+                self._effective_date = ed
+                break
+        if self._effective_date is None:
+            self._effective_date = self.timestamp
+        return self._effective_date
+
 
 class Revenue_tx(Transaction_record):
     pass
