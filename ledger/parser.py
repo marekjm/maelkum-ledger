@@ -141,7 +141,7 @@ def parse_expense_record(lines):
         source.append(lines[i])
         i += 1
 
-        print(source[-1])
+        # print(source[-1])
         parts = str(source[-1]).strip().rsplit()
         account = parts[0]
         value = None
@@ -204,7 +204,7 @@ def parse_revenue_record(lines):
         source.append(lines[i])
         i += 1
 
-        print(source[-1])
+        # print(source[-1])
         parts = str(source[-1]).strip().rsplit()
         account = parts[0]
         value = None
@@ -276,7 +276,7 @@ def parse(lines):
         elif parts[0] == 'rx':
             n, item = parse_revenue_record(lines[i:])
         else:
-            print(each)
+            # print(each)
             raise # invalid syntax
 
         if n == 0:

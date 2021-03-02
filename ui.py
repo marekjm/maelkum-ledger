@@ -244,8 +244,8 @@ def main(args):
             return item.effective_date()
         return item.timestamp
     book_ir = sorted(book_ir, key = sorting_key)
-    print('chronologically sorted item(s):'.format(len(book_ir)))
-    print('\n'.join(map(repr, book_ir)))
+    # print('chronologically sorted item(s):'.format(len(book_ir)))
+    # print('\n'.join(map(repr, book_ir)))
 
     ####
 
