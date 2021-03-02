@@ -318,6 +318,7 @@ def main(args):
     ledger.reporter.report_today(book, default_currency)
     ledger.reporter.report_yesterday(book, default_currency)
     ledger.reporter.report_this_month(book, default_currency)
+    ledger.reporter.report_last_month(book, default_currency)
     ledger.reporter.report_this_year(book, default_currency)
 
     report_total_reserves(accounts, book, default_currency)

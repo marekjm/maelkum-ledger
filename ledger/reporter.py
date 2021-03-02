@@ -1,5 +1,6 @@
 import datetime
 import decimal
+import sys
 
 from . import constants
 from . import ir
@@ -12,7 +13,10 @@ def report_day_impl(period_day, period_name, book, default_currency):
     expenses = []
     revenues = []
     for each in book:
-        if each.timestamp.date() != period_day.date():
+        if not isinstance(each, ir.Transaction_record):
+            continue
+
+        if each.effective_date().date() != period_day.date():
             continue
         if type(each) is ir.Expense_tx:
             expenses.append(each)
@@ -62,6 +66,7 @@ def report_yesterday(book, default_currency):
         default_currency,
     )
 
+
 def report_period_impl(period_span, period_name, book, default_currency):
     book, currency_basket = book
 
@@ -82,10 +87,13 @@ def report_period_impl(period_span, period_name, book, default_currency):
     for each in book:
         if not isinstance(each, ir.Transaction_record):
             continue
-        if each.effective_date() > period_end:
+
+        if each.effective_date().date() > period_end.date():
             continue
-        if each.effective_date() < period_begin:
+        if each.effective_date().date() < period_begin.date():
             continue
+
+        # FIXME currencies
         if type(each) is ir.Expense_tx:
             expenses.append(each)
         elif type(each) is ir.Revenue_tx:
@@ -97,9 +105,49 @@ def report_period_impl(period_span, period_name, book, default_currency):
         return
 
     total_expenses = decimal.Decimal()
-    for each in expenses:
-        ins_sum = sum(map(lambda x: x.value[0], each.ins))
-        total_expenses += ins_sum
+    for ex in expenses:
+        for each in ex.ins:
+            value_raw, currency = each.value
+            if currency == default_currency:
+                total_expenses += value_raw
+            else:
+                pair = (currency, default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, currency,)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for ex transaction'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            util.colors.colorise(
+                                'white',
+                                rx.text[0].location,
+                            ),
+                            util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                currency,
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    total_expenses += (value_raw / rate)
+                else:
+                    total_expenses += (value_raw * rate)
+
     p('  Expenses:   {} {}'.format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_NEGATIVE,
@@ -113,10 +161,49 @@ def report_period_impl(period_span, period_name, book, default_currency):
         return
 
     total_revenues = decimal.Decimal()
-    for each in revenues:
-        outs_sum = sum(filter(lambda x: x is not None, map(lambda x: x.value[0],
-            each.outs)))
-        total_revenues += outs_sum
+    for rx in revenues:
+        for each in rx.outs:
+            value_raw, currency = each.value
+            if currency == default_currency:
+                total_revenues += value_raw
+            else:
+                pair = (currency, default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, currency,)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for rx transaction'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            util.colors.colorise(
+                                'white',
+                                rx.text[0].location,
+                            ),
+                            util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                currency,
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    total_revenues += (value_raw / rate)
+                else:
+                    total_revenues += (value_raw * rate)
+
     p('  Revenues:   {} {}'.format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_POSITIVE,
@@ -160,6 +247,22 @@ def report_this_month(book, default_currency):
     report_period_impl(
         (period_begin, period_end,),
         'This month',
+        book,
+        default_currency,
+    )
+
+def report_last_month(book, default_currency):
+    period_end = datetime.datetime.strptime(
+        datetime.datetime.now().strftime(constants.THIS_MONTH_FORMAT),
+        constants.THIS_MONTH_FORMAT,
+    ) - datetime.timedelta(days = 1)
+    period_begin = datetime.datetime.strptime(
+        period_end.strftime(constants.THIS_MONTH_FORMAT),
+        constants.THIS_MONTH_FORMAT,
+    )
+    report_period_impl(
+        (period_begin, period_end,),
+        'Last month',
         book,
         default_currency,
     )
