@@ -24,6 +24,12 @@ import ledger
 # ∘
 # ∙
 
+def to_impl(stream, fmt, *args, **kwargs):
+    stream.write((fmt + '\n').format(*args, **kwargs))
+
+to_stdout = lambda fmt, *args, **kwargs: to_impl(sys.stdout, fmt, *args, **kwargs)
+to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwargs)
+
 ACCOUNT_ASSET_T = 'asset'
 ACCOUNT_LIABILITY_T = 'liability'
 ACCOUNT_EQUITY_T = 'equity'
@@ -53,7 +59,6 @@ def report_total_impl(period, account_types, accounts, book, default_currency):
                         rate = currency_basket['rates'][pair]
                         rev = True
                     except KeyError:
-                        print(currency_basket)
                         fmt = 'no currency pair {}/{} for {} account named {}'
                         sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
                             ledger.util.colors.colorise(
@@ -98,7 +103,7 @@ def report_total_impl(period, account_types, accounts, book, default_currency):
     else:
         fmt += '{} {}'
 
-    print(fmt.format(
+    to_stdout(fmt.format(
         ledger.util.colors.colorise(
             ledger.util.colors.COLOR_PERIOD_NAME,
             period,
@@ -174,7 +179,6 @@ def report_total_balances(accounts, book, default_currency):
                         rate = currency_basket['rates'][pair]
                         rev = True
                     except KeyError:
-                        print(currency_basket)
                         fmt = 'no currency pair {}/{} for {} account named {}'
                         sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
                             ledger.util.colors.colorise(
@@ -223,29 +227,29 @@ def report_total_balances(accounts, book, default_currency):
                     default_currency,
                 )
 
-            print(m)
+            to_stdout(m)
 
 def main(args):
-    print("Maelkum's ledger {} ({})".format(
+    to_stdout("Maelkum's ledger {} ({})".format(
         ledger.__version__,
         ledger.__commit__,
     ))
 
     book_main = args[0]
     book_lines = ledger.loader.load(book_main)
-    # print('\n'.join(map(repr, book_lines)))
+    # to_stdout('\n'.join(map(repr, book_lines)))
 
     book_ir = ledger.parser.parse(book_lines)
-    # print('{} item(s):'.format(len(book_ir)))
-    # print('\n'.join(map(repr, book_ir)))
+    # to_stdout('{} item(s):'.format(len(book_ir)))
+    # to_stdout('\n'.join(map(repr, book_ir)))
 
     def sorting_key(item):
         if isinstance(item, ledger.ir.Transaction_record):
             return item.effective_date()
         return item.timestamp
     book_ir = sorted(book_ir, key = sorting_key)
-    # print('chronologically sorted item(s):'.format(len(book_ir)))
-    # print('\n'.join(map(repr, book_ir)))
+    # to_stdout('chronologically sorted item(s):'.format(len(book_ir)))
+    # to_stdout('\n'.join(map(lambda x: '{} {}'.format(x.timestamp, repr(x)), book_ir)))
 
     ####
 
@@ -314,12 +318,24 @@ def main(args):
 
     book = (book_ir, currency_basket,)
 
+    Screen = ledger.util.screen.Screen
+    screen = Screen(Screen.get_tty_width(), 2)
+
     # Then, prepare and display a report.
-    ledger.reporter.report_today(book, default_currency)
-    ledger.reporter.report_yesterday(book, default_currency)
-    ledger.reporter.report_this_month(book, default_currency)
-    ledger.reporter.report_last_month(book, default_currency)
-    ledger.reporter.report_this_year(book, default_currency)
+
+    ledger.reporter.report_today((screen, 0), book, default_currency)
+    ledger.reporter.report_yesterday((screen, 1), book, default_currency)
+    to_stdout(screen.str())
+    screen.reset()
+
+    ledger.reporter.report_this_month((screen, 0), book, default_currency)
+    ledger.reporter.report_last_month((screen, 1), book, default_currency)
+    to_stdout(screen.str())
+    screen.reset()
+
+    ledger.reporter.report_this_year((screen, 0), book, default_currency)
+    to_stdout(screen.str())
+    screen.reset()
 
     report_total_reserves(accounts, book, default_currency)
     report_total_balances(accounts, book, default_currency)

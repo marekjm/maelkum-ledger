@@ -7,7 +7,7 @@ from . import ir
 from . import util
 
 
-def report_day_impl(period_day, period_name, book, default_currency):
+def report_day_impl(to_out, period_day, period_name, book, default_currency):
     book, currency_basket = book
 
     expenses = []
@@ -23,7 +23,9 @@ def report_day_impl(period_day, period_name, book, default_currency):
         elif type(each) is ir.Revenue_tx:
             revenues.append(each)
 
-    p = print
+    def p(s = ''):
+        screen, column = to_out
+        screen.print(column, s)
 
     p('{} ({})'.format(
         util.colors.colorise('white', period_name),
@@ -50,16 +52,18 @@ def report_day_impl(period_day, period_name, book, default_currency):
 
     total_revenues = decimal.Decimal()
 
-def report_today(book, default_currency):
+def report_today(to_out, book, default_currency):
     report_day_impl(
+        to_out,
         datetime.datetime.now(),
         'Today',
         book,
         default_currency,
     )
 
-def report_yesterday(book, default_currency):
+def report_yesterday(to_out, book, default_currency):
     report_day_impl(
+        to_out,
         (datetime.datetime.now() - datetime.timedelta(days = 1)),
         'Yesterday',
         book,
@@ -67,12 +71,14 @@ def report_yesterday(book, default_currency):
     )
 
 
-def report_period_impl(period_span, period_name, book, default_currency):
+def report_period_impl(to_out, period_span, period_name, book, default_currency):
     book, currency_basket = book
 
     period_begin, period_end = period_span
 
-    p = print
+    def p(s = ''):
+        screen, column = to_out
+        screen.print(column, s)
 
     p('{} ({} to {})'.format(
         util.colors.colorise('white', period_name),
@@ -238,20 +244,21 @@ def report_period_impl(period_span, period_name, book, default_currency):
     ))
     p()
 
-def report_this_month(book, default_currency):
+def report_this_month(to_out, book, default_currency):
     period_end = datetime.datetime.now()
     period_begin = datetime.datetime.strptime(
         period_end.strftime(constants.THIS_MONTH_FORMAT),
         constants.TIMESTAMP_FORMAT,
     )
     report_period_impl(
+        to_out,
         (period_begin, period_end,),
         'This month',
         book,
         default_currency,
     )
 
-def report_last_month(book, default_currency):
+def report_last_month(to_out, book, default_currency):
     period_end = datetime.datetime.strptime(
         datetime.datetime.now().strftime(constants.THIS_MONTH_FORMAT),
         constants.THIS_MONTH_FORMAT,
@@ -261,19 +268,21 @@ def report_last_month(book, default_currency):
         constants.THIS_MONTH_FORMAT,
     )
     report_period_impl(
+        to_out,
         (period_begin, period_end,),
         'Last month',
         book,
         default_currency,
     )
 
-def report_this_year(book, default_currency):
+def report_this_year(to_out, book, default_currency):
     period_end = datetime.datetime.now()
     period_begin = datetime.datetime.strptime(
         period_end.strftime(constants.THIS_YEAR_FORMAT),
         constants.TIMESTAMP_FORMAT,
     )
     report_period_impl(
+        to_out,
         (period_begin, period_end,),
         'This year',
         book,
