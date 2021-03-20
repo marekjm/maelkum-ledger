@@ -160,7 +160,7 @@ def report_total_balances(accounts, book, default_currency):
             fmt = '  {}: {} {}'
             m += fmt.format(
                 name.ljust(longest_account_name),
-                ledger.util.colors.colorise_balance(balance_raw, '{:7.2f}'),
+                ledger.util.colors.colorise_balance(balance_raw, '{:8.2f}'),
                 acc['currency'],
             )
 
@@ -306,9 +306,13 @@ def main(args):
                 # FIXME report mismatched currencies
                 accounts[kind][name]['balance'] = b.value[0]
         if type(each) is ledger.ir.Revenue_tx:
-            pass
+            for a in each.outs:
+                kind, name = a.account
+                accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Expense_tx:
-            pass
+            for a in each.ins:
+                kind, name = a.account
+                accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Transfer_tx:
             pass
         elif type(each) is ledger.ir.Exchange_rates_record:
