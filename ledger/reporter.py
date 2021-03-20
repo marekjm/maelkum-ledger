@@ -41,16 +41,84 @@ def report_day_impl(to_out, period_day, period_name, book, default_currency):
     for each in expenses:
         ins_sum = sum(map(lambda x: x.value[0], each.ins))
         total_expenses += ins_sum
-    p('  Expenses: {} {}'.format(
+    p('  Expenses:   {} {}'.format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_NEGATIVE,
-            '{:.2f}'.format(abs(total_expenses)),
+            '{:7.2f}'.format(abs(total_expenses)),
         ),
         default_currency,
     ))
-    p()
+
+    if not revenues:
+        p()
+        return
 
     total_revenues = decimal.Decimal()
+    for rx in revenues:
+        for each in rx.outs:
+            value_raw, currency = each.value
+            if currency == default_currency:
+                total_revenues += value_raw
+            else:
+                pair = (currency, default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, currency,)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for rx transaction'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            util.colors.colorise(
+                                'white',
+                                rx.text[0].location,
+                            ),
+                            util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                currency,
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    total_revenues += (value_raw / rate)
+                else:
+                    total_revenues += (value_raw * rate)
+
+    p('  Revenues:   {} {}'.format(
+        util.colors.colorise(
+            util.colors.COLOR_BALANCE_POSITIVE,
+            '{:7.2f}'.format(abs(total_revenues)),
+        ),
+        default_currency,
+    ))
+
+    net = (total_revenues + total_expenses)
+    fmt = '  Net {} {} {}'
+    if net < 0:
+        p(fmt.format(
+            'loss:  ',
+            util.colors.colorise_balance(net, '{:7.2f}'),
+            default_currency,
+        ))
+    elif net > 0:
+        p(fmt.format(
+            'income:',
+            util.colors.colorise_balance(net, '{:7.2f}'),
+            default_currency,
+        ))
 
 def report_today(to_out, book, default_currency):
     report_day_impl(
