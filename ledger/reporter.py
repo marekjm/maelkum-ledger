@@ -7,31 +7,41 @@ from . import ir
 from . import util
 
 
-def report_day_impl(to_out, period_day, period_name, book, default_currency):
-    book, currency_basket = book
+# Underlying report implementations.
+# Add code here instead of to the frontend functions defined lower, unless a
+# specific piece of code is not shared between reports or does not use values
+# calculated here.
+def get_txs_of_period(period_span, txs):
+    period_begin, period_end = period_span
 
     expenses = []
     revenues = []
-    for each in book:
+    for each in txs:
         if not isinstance(each, ir.Transaction_record):
             continue
 
-        if each.effective_date().date() != period_day.date():
+        if each.effective_date().date() > period_end.date():
             continue
+        if each.effective_date().date() < period_begin.date():
+            continue
+
+        # FIXME currencies
         if type(each) is ir.Expense_tx:
             expenses.append(each)
         elif type(each) is ir.Revenue_tx:
             revenues.append(each)
 
+    return (expenses, revenues,)
+
+def report_common_impl(to_out, txs, book, default_currency, totals = False):
+    book, currency_basket = book
+
+    expenses, revenues = txs
+
     def p(s = ''):
         screen, column = to_out
         screen.print(column, s)
 
-    p('{} ({})'.format(
-        util.colors.colorise('white', period_name),
-        util.colors.colorise('white',
-            period_day.strftime(constants.DAYSTAMP_FORMAT)),
-    ))
     if (not expenses) and (not revenues):
         p('  No transactions.')
         p()
@@ -120,6 +130,65 @@ def report_day_impl(to_out, period_day, period_name, book, default_currency):
             default_currency,
         ))
 
+    if not totals:
+        return
+
+    p('    ----')
+
+    er = (abs(total_expenses) / total_revenues * 100)
+    p('  Expenses are {}% of revenues.'.format(
+        util.colors.colorise(
+            util.colors.COLOR_SPENT_RATIO(er),
+            f'{er:5.2f}',
+        ),
+    ))
+    p()
+
+def report_day_impl(to_out, period_day, period_name, book, default_currency):
+    def p(s = ''):
+        screen, column = to_out
+        screen.print(column, s)
+
+    p('{} ({})'.format(
+        util.colors.colorise('white', period_name),
+        util.colors.colorise('white',
+            period_day.strftime(constants.DAYSTAMP_FORMAT)),
+    ))
+    book, currency_basket = book
+    report_common_impl(
+        to_out = to_out,
+        txs = get_txs_of_period((period_day, period_day,), book),
+        book = (book, currency_basket,),
+        default_currency = default_currency,
+    )
+
+def report_period_impl(to_out, period_span, period_name, book, default_currency):
+    def p(s = ''):
+        screen, column = to_out
+        screen.print(column, s)
+
+    period_begin, period_end = period_span
+    p('{} ({} to {})'.format(
+        util.colors.colorise('white', period_name),
+        util.colors.colorise('white',
+            period_begin.strftime(constants.DAYSTAMP_FORMAT)),
+        util.colors.colorise('white',
+            period_end.strftime(constants.DAYSTAMP_FORMAT)),
+    ))
+
+    book, currency_basket = book
+    report_common_impl(
+        to_out = to_out,
+        txs = get_txs_of_period(period_span, book),
+        book = (book, currency_basket,),
+        default_currency = default_currency,
+        totals = True,
+    )
+
+
+# Frontend report functions.
+# Add convenience functions here (eg, for for current day, last month) and call
+# them from the UI.
 def report_today(to_out, book, default_currency):
     report_day_impl(
         to_out,
@@ -137,180 +206,6 @@ def report_yesterday(to_out, book, default_currency):
         book,
         default_currency,
     )
-
-
-def report_period_impl(to_out, period_span, period_name, book, default_currency):
-    book, currency_basket = book
-
-    period_begin, period_end = period_span
-
-    def p(s = ''):
-        screen, column = to_out
-        screen.print(column, s)
-
-    p('{} ({} to {})'.format(
-        util.colors.colorise('white', period_name),
-        util.colors.colorise('white',
-            period_begin.strftime(constants.DAYSTAMP_FORMAT)),
-        util.colors.colorise('white',
-            period_end.strftime(constants.DAYSTAMP_FORMAT)),
-    ))
-
-    expenses = []
-    revenues = []
-    for each in book:
-        if not isinstance(each, ir.Transaction_record):
-            continue
-
-        if each.effective_date().date() > period_end.date():
-            continue
-        if each.effective_date().date() < period_begin.date():
-            continue
-
-        # FIXME currencies
-        if type(each) is ir.Expense_tx:
-            expenses.append(each)
-        elif type(each) is ir.Revenue_tx:
-            revenues.append(each)
-
-    if (not expenses) and (not revenues):
-        p('  No transactions.')
-        p()
-        return
-
-    total_expenses = decimal.Decimal()
-    for ex in expenses:
-        for each in ex.ins:
-            value_raw, currency = each.value
-            if currency == default_currency:
-                total_expenses += value_raw
-            else:
-                pair = (currency, default_currency,)
-                rev = False
-                try:
-                    rate = currency_basket['rates'][pair]
-                except KeyError:
-                    try:
-                        pair = (default_currency, currency,)
-                        rate = currency_basket['rates'][pair]
-                        rev = True
-                    except KeyError:
-                        fmt = 'no currency pair {}/{} for ex transaction'
-                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                            util.colors.colorise(
-                                'white',
-                                rx.text[0].location,
-                            ),
-                            util.colors.colorise(
-                                'red',
-                                'error',
-                            ),
-                            util.colors.colorise(
-                                'white',
-                                currency,
-                            ),
-                            util.colors.colorise(
-                                'white',
-                                default_currency,
-                            ),
-                        ))
-                        exit(1)
-
-                rate = rate.rate
-                if rev:
-                    total_expenses += (value_raw / rate)
-                else:
-                    total_expenses += (value_raw * rate)
-
-    p('  Expenses:   {} {}'.format(
-        util.colors.colorise(
-            util.colors.COLOR_BALANCE_NEGATIVE,
-            '{:7.2f}'.format(abs(total_expenses)),
-        ),
-        default_currency,
-    ))
-
-    if not revenues:
-        p()
-        return
-
-    total_revenues = decimal.Decimal()
-    for rx in revenues:
-        for each in rx.outs:
-            value_raw, currency = each.value
-            if currency == default_currency:
-                total_revenues += value_raw
-            else:
-                pair = (currency, default_currency,)
-                rev = False
-                try:
-                    rate = currency_basket['rates'][pair]
-                except KeyError:
-                    try:
-                        pair = (default_currency, currency,)
-                        rate = currency_basket['rates'][pair]
-                        rev = True
-                    except KeyError:
-                        fmt = 'no currency pair {}/{} for rx transaction'
-                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                            util.colors.colorise(
-                                'white',
-                                rx.text[0].location,
-                            ),
-                            util.colors.colorise(
-                                'red',
-                                'error',
-                            ),
-                            util.colors.colorise(
-                                'white',
-                                currency,
-                            ),
-                            util.colors.colorise(
-                                'white',
-                                default_currency,
-                            ),
-                        ))
-                        exit(1)
-
-                rate = rate.rate
-                if rev:
-                    total_revenues += (value_raw / rate)
-                else:
-                    total_revenues += (value_raw * rate)
-
-    p('  Revenues:   {} {}'.format(
-        util.colors.colorise(
-            util.colors.COLOR_BALANCE_POSITIVE,
-            '{:7.2f}'.format(abs(total_revenues)),
-        ),
-        default_currency,
-    ))
-
-    net = (total_revenues + total_expenses)
-    fmt = '  Net {} {} {}'
-    if net < 0:
-        p(fmt.format(
-            'loss:  ',
-            util.colors.colorise_balance(net, '{:7.2f}'),
-            default_currency,
-        ))
-    elif net > 0:
-        p(fmt.format(
-            'income:',
-            util.colors.colorise_balance(net, '{:7.2f}'),
-            default_currency,
-        ))
-
-    p('    ----')
-
-    er = (abs(total_expenses) / total_revenues * 100)
-    p('  Expenses are {}% of revenues.'.format(
-        util.colors.colorise(
-            util.colors.COLOR_SPENT_RATIO(er),
-            f'{er:5.2f}',
-        ),
-    ))
-    p()
 
 def report_this_month(to_out, book, default_currency):
     period_end = datetime.datetime.now()
@@ -357,6 +252,10 @@ def report_this_year(to_out, book, default_currency):
         default_currency,
     )
 
+
+################################################################################
+# LEGACY STUFF BELOW!
+################################################################################
 
 def legacy_output_table(expenses, revenues, column, include_percentage = False):
     p = lambda t: Book.screen.print(column = column, text = t)
