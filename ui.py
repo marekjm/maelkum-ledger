@@ -314,7 +314,12 @@ def main(args):
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Transfer_tx:
-            pass
+            for a in each.ins:
+                kind, name = a.account
+                accounts[kind][name]['balance'] += a.value[0]
+            for a in each.outs:
+                kind, name = a.account
+                accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Exchange_rates_record:
             for r in each.rates:
                 currency_basket['rates'][(str(r.src), str(r.dst),)] = r

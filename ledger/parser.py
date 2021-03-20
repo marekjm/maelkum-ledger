@@ -1,8 +1,10 @@
 import datetime
 import decimal
 import re
+import sys
 
 from . import ir
+from . import util
 
 
 def parse_open_account(lines):
@@ -253,6 +255,68 @@ def parse_revenue_record(lines):
         tags,
     )
 
+def parse_transfer_record(lines):
+    source = []
+
+    source.append(lines[0])
+    parts = str(source[-1]).split()
+    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+
+    accounts = []
+    i = 1
+    while str(lines[i]) not in ('with', 'end',):
+        source.append(lines[i])
+        i += 1
+
+        # print(source[-1])
+        parts = str(source[-1]).strip().rsplit()
+        account = parts[0]
+        value = None
+        currency = None
+
+        is_own_account = lambda a: (a.split('/')[0] in ('asset', 'liability', 'stock',))
+        if is_own_account(account):
+            value = decimal.Decimal(parts[-2])
+            currency = parts[-1]
+            account = account.split('/')
+        else:
+            account = (None, account,)
+
+        accounts.append(ir.Account_mod(
+            source[-1],
+            timestamp,
+            account,
+            (value, currency,),
+        ))
+
+    tags = []
+    if str(lines[i]) == 'with':
+        source.append(lines[i]) # for the `with` line
+
+        i += 1
+        while str(lines[i]) != 'end':
+            source.append(lines[i])
+            tags.append(source[-1])
+            i += 1
+
+    source.append(lines[i]) # for the `end` line
+
+    ins = []
+    outs = []
+    for each in accounts:
+        if each > 0:
+            outs.append(each)
+        else:
+            ins.append(each)
+
+    return len(source), ir.Transfer_tx(
+        source,
+        timestamp,
+        ins,
+        outs,
+        tags,
+    )
+
 def parse(lines):
     items = []
 
@@ -275,8 +339,23 @@ def parse(lines):
             n, item = parse_expense_record(lines[i:])
         elif parts[0] == 'rx':
             n, item = parse_revenue_record(lines[i:])
+        elif parts[0] == 'tx':
+            n, item = parse_transfer_record(lines[i:])
         else:
-            # print(each)
+            print(type(each), repr(each))
+            fmt = 'invalid syntax in `{}`'
+            sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                util.colors.colorise(
+                    'white',
+                    each.location,
+                ),
+                util.colors.colorise(
+                    'red',
+                    'error',
+                ),
+                str(each),
+            ))
+            exit(1)
             raise # invalid syntax
 
         if n == 0:
