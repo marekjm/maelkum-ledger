@@ -9,7 +9,7 @@ class Location:
         self.line = line
 
     def __str__(self):
-        return '{}:{}'.format(self.path, self.line)
+        return '{}:{}'.format(self.path, self.line + 1)
 
     def __repr__(self):
         return str(self)
