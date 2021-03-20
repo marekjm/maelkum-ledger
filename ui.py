@@ -299,25 +299,59 @@ def main(args):
     # Then, process transactions (ie, revenues, expenses, dividends, transfers)
     # to get an accurate picture of balances.
     currency_basket = { 'rates': {}, 'txs': [], }
+    def ensure_currency_match(accounts, a):
+        kind, name = a.account
+        account_currency = accounts[kind][name]['currency']
+        tx_currency = a.value[1]
+        if account_currency != tx_currency:
+            fmt = 'mismatched currency: account {} is in {}, but value is in {}'
+            sys.stdout.write(('{}: {}: ' + fmt + '\n').format(
+                ledger.util.colors.colorise(
+                    'white',
+                    a.text.location,
+                ),
+                ledger.util.colors.colorise(
+                    'red',
+                    'error',
+                ),
+                ledger.util.colors.colorise(
+                    'white',
+                    '{}/{}'.format(kind, name),
+                ),
+                ledger.util.colors.colorise(
+                    'light_green',
+                    account_currency,
+                ),
+                ledger.util.colors.colorise(
+                    'red_1',
+                    tx_currency,
+                ),
+            ))
+            exit(1)
     for each in book_ir:
         if type(each) is ledger.ir.Balance_record:
             for b in each.accounts:
+                ensure_currency_match(accounts, a)
                 kind, name = b.account
                 # FIXME report mismatched currencies
                 accounts[kind][name]['balance'] = b.value[0]
         if type(each) is ledger.ir.Revenue_tx:
             for a in each.outs:
+                ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Expense_tx:
             for a in each.ins:
+                ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Transfer_tx:
             for a in each.ins:
+                ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
             for a in each.outs:
+                ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
         elif type(each) is ledger.ir.Exchange_rates_record:
