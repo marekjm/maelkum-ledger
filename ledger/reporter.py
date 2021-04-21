@@ -299,6 +299,23 @@ def report_this_year(to_out, book, default_currency):
         default_currency,
     )
 
+def report_all_time(to_out, book, default_currency):
+    first = None
+    for each in book[0]:
+        if isinstance(each, ir.Transaction_record):
+            first = each
+            break
+
+    period_end = datetime.datetime.now()
+    period_begin = first.effective_date()
+    report_period_impl(
+        to_out,
+        (period_begin, period_end,),
+        'All time',
+        book,
+        default_currency,
+    )
+
 
 ################################################################################
 # LEGACY STUFF BELOW!

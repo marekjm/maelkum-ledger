@@ -386,6 +386,7 @@ def main(args):
     screen.reset()
 
     ledger.reporter.report_this_year((screen, 0), book, default_currency)
+    ledger.reporter.report_all_time((screen, 1), book, default_currency)
     to_stdout(screen.str())
     screen.reset()
 
