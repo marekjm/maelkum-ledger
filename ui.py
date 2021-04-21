@@ -335,6 +335,11 @@ def main(args):
         if type(each) is ledger.ir.Account_record:
             continue
 
+        if type(each) is ledger.ir.Exchange_rates_record:
+            for r in each.rates:
+                currency_basket['rates'][(str(r.src), str(r.dst),)] = r
+            continue
+
         if each.effective_date() > this_moment_in_time:
             continue
 
@@ -363,9 +368,6 @@ def main(args):
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
-        elif type(each) is ledger.ir.Exchange_rates_record:
-            for r in each.rates:
-                currency_basket['rates'][(str(r.src), str(r.dst),)] = r
         # FIXME dividends
 
     book = (book_ir, currency_basket,)
