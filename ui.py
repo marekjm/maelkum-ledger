@@ -328,7 +328,16 @@ def main(args):
                 ),
             ))
             exit(1)
+    this_moment_in_time = datetime.datetime.now()
     for each in book_ir:
+        if type(each) is ledger.ir.Configuration_line:
+            continue
+        if type(each) is ledger.ir.Account_record:
+            continue
+
+        if each.effective_date() > this_moment_in_time:
+            continue
+
         if type(each) is ledger.ir.Balance_record:
             for b in each.accounts:
                 ensure_currency_match(accounts, a)

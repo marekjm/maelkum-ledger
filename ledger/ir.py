@@ -34,6 +34,9 @@ class Balance_record(Item):
         super().__init__(text, timestamp)
         self.accounts = accounts
 
+    def effective_date(self):
+        return self.timestamp
+
 
 class Transaction_record(Item):
     def __init__(self, text, timestamp, ins, outs, tags):
