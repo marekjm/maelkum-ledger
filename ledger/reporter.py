@@ -49,7 +49,54 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
 
     total_expenses = decimal.Decimal()
     for each in expenses:
-        ins_sum = sum(map(lambda x: x.value[0], each.ins))
+        ins_sum = decimal.Decimal()
+        for exin in each.ins:
+            val = exin.value
+            currency = val[1]
+            if currency == default_currency:
+                ins_sum += val[0]
+            else:
+                pair = (currency, default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, currency,)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for {} account named {}'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            ledger.util.colors.colorise(
+                                'white',
+                                acc['~'].text[0].location,
+                            ),
+                            ledger.util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            ledger.util.colors.colorise(
+                                'white',
+                                currency,
+                            ),
+                            ledger.util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                            t,
+                            ledger.util.colors.colorise(
+                                'white',
+                                name,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    ins_sum += (val[0] / rate)
+                else:
+                    ins_sum += (val[0] * rate)
         total_expenses += ins_sum
     p('  Expenses:   {} {}'.format(
         util.colors.colorise(
