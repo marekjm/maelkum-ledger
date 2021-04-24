@@ -153,6 +153,10 @@ def report_total_balances(accounts, book, default_currency):
     for t in ACCOUNT_TYPES:
         for name in sort_main_on_top(accounts[t]):
             acc = accounts[t][name]
+            tags = acc['tags']
+
+            if 'overview' not in tags:
+                continue
 
             m = ''
 
@@ -229,6 +233,265 @@ def report_total_balances(accounts, book, default_currency):
 
             to_stdout(m)
 
+def report_total_equity(accounts, book, default_currency):
+    eq_accounts = accounts['equity']
+
+    book, currency_basket = book
+
+    # Display the header. A basic overview of how many equity accounts there
+    # are.
+    fmt = '{} of {} equity account(s)'
+    to_stdout(fmt.format(
+        ledger.util.colors.colorise(
+            ledger.util.colors.COLOR_PERIOD_NAME,
+            'State',
+        ),
+        len(eq_accounts.keys()),
+    ))
+
+    for name, account in eq_accounts.items():
+        account['balance'] = decimal.Decimal()
+        account['paid'] = decimal.Decimal()
+        account['value'] = decimal.Decimal()
+        account['dividends'] = decimal.Decimal()
+        account['worth'] = decimal.Decimal()
+
+        for company, shares in account['shares'].items():
+            share_price = shares['price_per_share']
+            dividends = shares['dividends']
+
+            # Fees paid to acquire the shares.
+            fees = decimal.Decimal()
+
+            # Total amount of money paid for the shares: share price plus any
+            # fees to intermediaries.
+            paid = decimal.Decimal()
+
+            shares_no = 0
+            for each in shares['txs']:
+                paid += each['value']
+                fee = each['shares']['fee']['amount']
+                paid -= fee
+                fees -= fee
+                shares_no += each['shares']['no']
+
+            # Shares worth at the time.
+            worth = (shares_no * share_price)
+
+            # Value of the shares; ie, the value that they represent to the
+            # owner after subtracting fees and adding dividends.
+            value = (worth - fees + dividends)
+
+            gain_nominal = (worth - paid)
+            gain_percent = ((worth / paid * 100) - 100)
+
+            tr_nominal = (worth - paid + dividends)
+            tr_percent = ((tr_nominal / paid) * 100)
+            tr = {
+                'relevant': (dividends != 0),
+                'nominal': tr_nominal,
+                'percent': tr_percent,
+            }
+
+            shares['shares'] = shares_no
+            shares['balance'] = worth
+            shares['paid'] = paid
+            shares['value'] = value
+            shares['total_return'] = tr
+            shares['gain'] = {
+                'nominal': gain_nominal,
+                'percent': gain_percent,
+            }
+
+            if shares_no:
+                account['balance'] += worth
+                account['paid'] += paid
+                account['value'] += value
+            account['dividends'] += dividends
+
+            continue
+
+            # Here is the total money that you had to pay to obtain the
+            # shares. It is the source price because what you paid not only
+            # includes the shares' worth, but also the fees.
+            #
+            # Note that the amount may be negative (if you were only buying
+            # shares or sold them with a loss) or positive (if you sold
+            # shares with a profit).
+            #
+            # FIXME Calculations should be reset of the amount of shares
+            # ever reaches 0 as that means we sold all our shares, and using
+            # old prices after such a point does not make much sense.
+            paid = sum(map(
+                lambda x: (
+                    x['value']
+                    # A clever way of obtaining 1 if the operation was a buy
+                    # and -1 if the operation was a sell.
+                    #
+                    # We need this to correctly calculate the total amount
+                    # of money we have paid for the shares we have. If we
+                    # were buying then we should add the amount to the total
+                    # cost, but if we were selling then we should subtract.
+                    # Multiplying the source amount by either 1 or -1 makes
+                    # it possible to do it in a simple map/sum operation.
+                    #
+                    # Why do we sum source amounts? Because when buying we
+                    # should consider the amount of money we had to give to
+                    # the trading organisation to obtain the shares, and
+                    # when selling we should consider the amount of money we
+                    # got from the market.
+                    * (x['shares']['no'] / abs(x['shares']['no']))
+                ),
+                shares['txs']))
+
+            # What the shares are worth is simple: you take price of one
+            # share and multiply it by the amount of shares you own.
+            worth = (shares_no * share_price)
+
+            # The value of shares for you is not exactly what they are worth
+            # on the market. Remember that you paid some fees to acquite
+            # them, and that they may have yielded you some dividends.
+            value = (worth - fees + dividends)
+
+            # Account's balance tells you the worth of your account and is
+            # not concerned with any fees that you may have incurred while
+            # acquiting the wealth.
+            #
+            # The balance should not be modified if there are no shares for
+            # a company. This means that all shares were sold and including
+            # their cost in the report would be hugely misleading.
+            account['balance'] += (worth
+                if shares_no
+                else decimal.Decimal(0))
+            account['paid'] += (paid
+                if shares_no
+                else decimal.Decimal(0))
+            account['value'] += (value
+                if shares_no
+                else decimal.Decimal(0))
+            account['dividends'] += dividends
+
+            tr_nominal = (worth + paid + dividends)
+            tr_percent = -((tr_nominal / paid) * 100)
+            tr = {
+                'relevant': (dividends != 0),
+                'nominal': tr_nominal,
+                'percent': tr_percent,
+            }
+
+            shares['balance'] = worth
+            shares['paid'] = paid
+            shares['value'] = value
+            shares['total_return'] = tr
+
+        # Include dividends in profit calculations. If the shares went down,
+        # but the dividends were healthy then you are still OK.
+        nominal_value = (account['balance'] + account['dividends'])
+        nominal_profit = (nominal_value - account['paid'])
+        percent_profit = decimal.Decimal()
+        if account['paid']:  # beware zero division!
+            percent_profit = (((nominal_value / account['paid']) - 1) * 100)
+        account['gain'] = {
+            'nominal': nominal_profit,
+            'percent': percent_profit,
+        }
+
+    company_name_length = 0
+    shares_length = 0
+    for account in eq_accounts.values():
+        for name, shares in account['shares'].items():
+            company_name_length = max(company_name_length, len(name))
+            shares_length = max(shares_length, len(str(shares['shares'])))
+
+    max(map(len, account['shares'].keys()))
+    shares_length = max(map(lambda _: len(str(_['shares'])),
+        account['shares'].values()))
+
+    for name, account in eq_accounts.items():
+        total_value = account['balance']
+
+        gain = account['gain']
+        gain_nominal = gain['nominal']
+        gain_percent = gain['percent']
+        gain_sign = ('+' if gain_percent > 0 else '')
+
+        companies_with_loss = len(list(
+            filter(lambda x: (x < 0),
+            map(lambda x: x['total_return']['nominal'],
+            filter(lambda x: x['shares'],
+            account['shares'].values(),
+        )))))
+
+        fmt_overview = '  {} => {} {} ({} {}, {}{}%)'
+        to_stdout(fmt_overview.format(
+            name,
+            ledger.util.colors.colorise_balance(total_value),
+            account['currency'],
+            ledger.util.colors.colorise_balance(gain_nominal),
+            account['currency'],
+            ledger.util.colors.colorise_balance(gain_nominal, gain_sign),
+            ledger.util.colors.colorise_balance(gain_percent),
+        ))
+
+        if not account['shares']:
+            continue
+
+        fmt = '    {}: {} * {} = {} ({} {}, {}% @ {}{}{} {})'
+        fmt_share_price = '{:8.4f}'
+        fmt_share_count = '{:3.0f}'
+        fmt_share_worth = '{:8.2f}'
+        fmt_gain_nominal = '{:8.2f}'
+        fmt_gain_percent = '{:8.4f}'
+        for company in sorted(account['shares'].keys()):
+            shares = account['shares'][company]
+
+            paid = shares['paid']
+            no_of_shares = shares['shares']
+
+            share_price = shares['price_per_share']
+            share_price_avg = abs(paid / no_of_shares)
+            worth = (share_price * no_of_shares)
+
+            gain_nominal = shares['gain']['nominal']
+            gain_percent = shares['gain']['percent']
+            gain_sign = ('+' if gain_percent >= 0 else '')
+            gain_nominal_per_share = (gain_nominal / no_of_shares)
+
+            from ledger.util.colors import colorise_if_possible as c
+            from ledger.util.colors import colorise_balance as cb
+            from ledger.util.colors import (
+                COLOR_SHARE_PRICE,
+                COLOR_SHARE_COUNT,
+                COLOR_SHARE_PRICE_AVG,
+                COLOR_SHARE_WORTH,
+            )
+            this_fmt = fmt[:]
+
+            tr = shares['total_return']
+            value_for_color = gain_percent
+            if tr['relevant']:
+                this_fmt += ', TR: {} {}, {}%'.format(
+                    cb(tr['nominal']),
+                    account['currency'],
+                    cb(tr['percent']),
+                )
+                value_for_color = tr['percent']
+
+            to_stdout(this_fmt.format(
+                cb(value_for_color, company.rjust(company_name_length)),
+                c(COLOR_SHARE_PRICE, fmt_share_price.format(share_price)),
+                c(COLOR_SHARE_COUNT, fmt_share_count.format(share_price)),
+                c(COLOR_SHARE_WORTH, fmt_share_worth.format(worth)),
+                cb(gain_nominal, fmt_gain_nominal),
+                account['currency'],
+                cb(gain_percent, fmt_gain_percent),
+                c(COLOR_SHARE_PRICE_AVG, '{:6.2f}'.format(share_price_avg)),
+                cb(gain_nominal_per_share, gain_sign),
+                cb(gain_nominal_per_share, '{:.4f}'),
+                account['currency'],
+                repr(gain_sign),
+            ))
+
 def main(args):
     to_stdout("Maelkum's ledger {} ({})".format(
         ledger.__version__,
@@ -288,7 +551,7 @@ def main(args):
                 ))
                 exit(1)
 
-            accounts[kind][name] = {
+            account_data = {
                 'balance': each.balance[0],
                 'currency': each.balance[1],
                 'created': each.timestamp,
@@ -296,11 +559,55 @@ def main(args):
                 '~': each,
             }
 
+            # If the account represents an equity account, we need to track a
+            # bit more information than for a regular asset account. Equity is
+            # somewhat dynamic - shares change valuations, divindend are paid
+            # out, and transactions usually have fees. This all needs to be
+            # accounted for.
+            if kind == ledger.constants.ACCOUNT_EQUITY_T:
+                # First, let's track shares. This is the basic feature of an
+                # equity account and will be the basis of the fluctuating value
+                # of the account.
+                account_data['shares'] = {}
+
+                # We also need to track the list of companies that are held in
+                # shares. This is useful where the amount of shares reaches zero
+                # and profit-loss calculations must be reset.
+                account_data['companies'] = set()
+
+                # We also need to track profits (or, hopefully not, losses).
+                # Profits are tracked as "nominal" ie, measured in monetary
+                # units (eg, USD, EUR) and "percent" ie, measured in a
+                # percentage increase (or decrease) in value of shares held.
+                account_data['gain'] = {
+                    'nominal': decimal.Decimal(),
+                    'percent': decimal.Decimal(),
+                }
+
+            accounts[kind][name] = account_data
+
     # Then, process transactions (ie, revenues, expenses, dividends, transfers)
     # to get an accurate picture of balances.
     currency_basket = { 'rates': {}, 'txs': [], }
     def ensure_currency_match(accounts, a):
         kind, name = a.account
+        if kind is None:
+            fmt = 'no currency for non-owned account {}'
+            sys.stdout.write(('{}: {}: ' + fmt + '\n').format(
+                ledger.util.colors.colorise(
+                    'white',
+                    a.text.location,
+                ),
+                ledger.util.colors.colorise(
+                    'red',
+                    'error',
+                ),
+                ledger.util.colors.colorise(
+                    'white',
+                    '{}/{}'.format(kind, name),
+                ),
+            ))
+            exit(1)
         account_currency = accounts[kind][name]['currency']
         tx_currency = a.value[1]
         if account_currency != tx_currency:
@@ -329,6 +636,8 @@ def main(args):
             ))
             exit(1)
     this_moment_in_time = datetime.datetime.now()
+
+    # Calculate balances.
     for each in book_ir:
         if type(each) is ledger.ir.Configuration_line:
             continue
@@ -345,10 +654,14 @@ def main(args):
 
         if type(each) is ledger.ir.Balance_record:
             for b in each.accounts:
-                ensure_currency_match(accounts, a)
                 kind, name = b.account
-                # FIXME report mismatched currencies
-                accounts[kind][name]['balance'] = b.value[0]
+                if kind == ledger.constants.ACCOUNT_EQUITY_T:
+                    company, share_price, _ = b.value
+                    shares = accounts[kind][name]['shares']
+                    shares[company]['price_per_share'] = share_price
+                else:
+                    ensure_currency_match(accounts, b)
+                    accounts[kind][name]['balance'] = b.value[0]
         if type(each) is ledger.ir.Revenue_tx:
             for a in each.outs:
                 ensure_currency_match(accounts, a)
@@ -368,6 +681,87 @@ def main(args):
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
+        elif type(each) is ledger.ir.Equity_tx:
+            inflow = decimal.Decimal()
+            outflow = decimal.Decimal()
+            # There is only one destination account since we can only deposit
+            # shares in one account using a single transfer.
+            dst_account = None
+            for a in each.ins:
+                ensure_currency_match(accounts, a)
+                kind, name = a.account
+                accounts[kind][name]['balance'] += a.value[0]
+                inflow += a.value[0]
+            for a in each.outs:
+                ensure_currency_match(accounts, a)
+                kind, name = a.account
+                outflow += a.value[0]
+                accounts[kind][name]['balance'] += a.value[0]
+                dst_account = a.account
+
+            fee_value = decimal.Decimal()
+            fee_currency = default_currency
+            for t in each.tags:
+                s = str(t).strip()
+                if s.startswith('fee:'):
+                    fee = s.split()[1:]
+                    fee_currency = fee[1]
+                    fee_value = decimal.Decimal(fee[0])
+
+            this_shares = None
+            for t in each.tags:
+                s = str(t).strip()
+                if s.startswith('shares:'):
+                    shares = s.split()[1:]
+
+                    company = shares[0]
+                    this_shares = {
+                        'company': company,
+                        'no': decimal.Decimal(shares[1]),
+                        'fee': {
+                            'currency': fee_currency,
+                            'amount': fee_value,
+                        },
+                    }
+
+            pps = (-inflow / this_shares['no'])
+
+            this_tx = {
+                'base': each,
+                'value': -inflow,
+                'shares': this_shares,
+            }
+
+            kind, name = dst_account
+            company = this_shares['company']
+            if company not in accounts[kind][name]['shares']:
+                accounts[kind][name]['shares'][company] = {
+                    'shares': 0,
+                    'price_per_share': decimal.Decimal(),
+                    'fees': decimal.Decimal(),
+                    'dividends': decimal.Decimal(),
+                    'txs': [],
+                    # FIXME are these fields below really needed?
+                    'balance': decimal.Decimal(),
+                    'paid': decimal.Decimal(),
+                    'value': decimal.Decimal(),
+                    'total_return': decimal.Decimal(),
+                }
+
+            accounts[kind][name]['shares'][company]['txs'].append(this_tx)
+            accounts[kind][name]['shares'][company]['price_per_share'] = pps
+            accounts[kind][name]['companies'].add(company)
+        if type(each) is ledger.ir.Dividend_tx:
+            for a in each.outs:
+                ensure_currency_match(accounts, a)
+                kind, name = a.account
+                accounts[kind][name]['balance'] += a.value[0]
+            for a in each.ins:
+                kind, name = a.account
+                company, value, _ = a.value
+                shares = accounts[kind][name]['shares']
+                shares[company]['dividends'] += value
+
         # FIXME dividends
 
     book = (book_ir, currency_basket,)
@@ -394,5 +788,6 @@ def main(args):
 
     report_total_reserves(accounts, book, default_currency)
     report_total_balances(accounts, book, default_currency)
+    report_total_equity(accounts, book, default_currency)
 
 main(sys.argv[1:])

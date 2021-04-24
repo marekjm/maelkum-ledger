@@ -5,6 +5,7 @@ import sys
 
 from . import ir
 from . import util
+from . import constants
 
 
 def parse_open_account(lines):
@@ -37,6 +38,8 @@ def parse_open_account(lines):
             source.append(lines[i])
             i += 1
         source.append(lines[i])
+    else:
+        source.append(lines[2])
 
     return len(source), ir.Account_record(
         source,
@@ -109,18 +112,29 @@ def parse_balance_record(lines):
         i += 1
 
         parts = str(source[-1]).strip().split()
-        account = parts[0]
-        value = decimal.Decimal(parts[1])
-        currency = parts[2]
 
+        account = parts[0]
         account = account.split('/')
 
-        rates.append(ir.Account_mod(
-            source[-1],
-            timestamp,
-            account,
-            (value, currency,),
-        ))
+        if account[0] == constants.ACCOUNT_EQUITY_T:
+            company = parts[1]
+            value = decimal.Decimal(parts[2])
+            currency = parts[3]
+            rates.append(ir.Account_mod(
+                source[-1],
+                timestamp,
+                account,
+                (company, value, currency,),
+            ))
+        else:
+            value = decimal.Decimal(parts[1])
+            currency = parts[2]
+            rates.append(ir.Account_mod(
+                source[-1],
+                timestamp,
+                account,
+                (value, currency,),
+            ))
 
     source.append(lines[i])
 
@@ -149,8 +163,7 @@ def parse_expense_record(lines):
         value = None
         currency = None
 
-        is_own_account = lambda a: (a.split('/')[0] in ('asset', 'liability',
-            'equity',))
+        is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
             value = decimal.Decimal(parts[-2])
             currency = parts[-1]
@@ -212,7 +225,7 @@ def parse_revenue_record(lines):
         value = None
         currency = None
 
-        is_own_account = lambda a: (a.split('/')[0] in ('asset', 'liability', 'stock',))
+        is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
             value = decimal.Decimal(parts[-2])
             currency = parts[-1]
@@ -274,7 +287,7 @@ def parse_transfer_record(lines):
         value = None
         currency = None
 
-        is_own_account = lambda a: (a.split('/')[0] in ('asset', 'liability', 'stock',))
+        is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
             value = decimal.Decimal(parts[-2])
             currency = parts[-1]
@@ -289,6 +302,7 @@ def parse_transfer_record(lines):
             (value, currency,),
         ))
 
+    is_equity_tx = False
     tags = []
     if str(lines[i]) == 'with':
         source.append(lines[i]) # for the `with` line
@@ -297,6 +311,8 @@ def parse_transfer_record(lines):
         while str(lines[i]) != 'end':
             source.append(lines[i])
             tags.append(source[-1])
+            if str(tags[-1]).strip().startswith('shares:'):
+                is_equity_tx = True
             i += 1
 
     source.append(lines[i]) # for the `end` line
@@ -309,7 +325,71 @@ def parse_transfer_record(lines):
         else:
             ins.append(each)
 
-    return len(source), ir.Transfer_tx(
+    return len(source), (ir.Equity_tx if is_equity_tx else ir.Transfer_tx)(
+        source,
+        timestamp,
+        ins,
+        outs,
+        tags,
+    )
+
+def parse_dividend_record(lines):
+    source = []
+
+    source.append(lines[0])
+    parts = str(source[-1]).split()
+    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+
+    company = None
+    eq_account = None
+
+    accounts = []
+    i = 1
+    while str(lines[i]) not in ('with', 'end',):
+        source.append(lines[i])
+        i += 1
+
+        # print(source[-1])
+        parts = str(source[-1]).strip().rsplit()
+
+        account = parts[0]
+        account = account.split('/')
+        kind, name = account
+        if kind == constants.ACCOUNT_EQUITY_T:
+            company = parts[1]
+            eq_account = account
+            continue
+
+        value = decimal.Decimal(parts[1])
+        currency = parts[2]
+
+        accounts.append(ir.Account_mod(
+            source[-1],
+            timestamp,
+            account,
+            (value, currency,),
+        ))
+
+    source.append(lines[i]) # for the `end` line
+
+    ins = []
+    outs = []
+    for each in accounts:
+        if each > 0:
+            outs.append(each)
+        else:
+            ins.append(each)
+
+    ins.append(ir.Account_mod(
+        source[-2],
+        outs[0].timestamp,
+        eq_account,
+        (company, *outs[0].value,)
+    ))
+
+    tags = []
+
+    return len(source), ir.Dividend_tx(
         source,
         timestamp,
         ins,
@@ -341,6 +421,8 @@ def parse(lines):
             n, item = parse_revenue_record(lines[i:])
         elif parts[0] == 'tx':
             n, item = parse_transfer_record(lines[i:])
+        elif parts[0] == 'dividend':
+            n, item = parse_dividend_record(lines[i:])
         else:
             print(type(each), repr(each))
             fmt = 'invalid syntax in `{}`'
@@ -361,7 +443,8 @@ def parse(lines):
         if n == 0:
             raise # invalid syntax
 
-        items.append(item)
+        if item is not None:
+            items.append(item)
         i += n
 
     return items

@@ -70,6 +70,10 @@ class Expense_tx(Transaction_record):
     pass
 class Transfer_tx(Transaction_record):
     pass
+class Equity_tx(Transaction_record):
+    pass
+class Dividend_tx(Transaction_record):
+    pass
 
 
 class Exchange_rate(Item):
