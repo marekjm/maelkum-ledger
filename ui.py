@@ -385,6 +385,85 @@ def report_total_equity(accounts, book, default_currency):
             'percent': percent_profit,
         }
 
+    total_gain = []
+    for name, account in eq_accounts.items():
+        gain = account['gain']
+        gain_nominal = gain['nominal']
+        gain_percent = gain['percent']
+
+        if account['currency'] != default_currency:
+            pair = (account['currency'], default_currency,)
+            rev = False
+            try:
+                rate = currency_basket['rates'][pair]
+            except KeyError:
+                try:
+                    pair = (default_currency, account['currency'],)
+                    rate = currency_basket['rates'][pair]
+                    rev = True
+                except KeyError:
+                    fmt = 'no currency pair {}/{} for {} account named {}'
+                    sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                        ledger.util.colors.colorise(
+                            'white',
+                            account['~'].text[0].location,
+                        ),
+                        ledger.util.colors.colorise(
+                            'red',
+                            'error',
+                        ),
+                        ledger.util.colors.colorise(
+                            'white',
+                            account['currency'],
+                        ),
+                        ledger.util.colors.colorise(
+                            'white',
+                            default_currency,
+                        ),
+                        t,
+                        ledger.util.colors.colorise(
+                            'white',
+                            name,
+                        ),
+                    ))
+                    exit(1)
+
+            rate = rate.rate
+            if rev:
+                gain_nominal = (gain_nominal / rate)
+            else:
+                gain_nominal = (gain_nominal * rate)
+
+        total_gain.append((gain_nominal, gain_percent,))
+
+    nominal_gain = sum(map(lambda e: e[0], total_gain))
+    percent_gain = []
+    for n, p in total_gain:
+        r = ((n / nominal_gain) * p) * (p / abs(p))
+        percent_gain.append(r)
+    percent_gain = sum(percent_gain)
+
+    gain_sign = ('+' if nominal_gain > 0 else '')
+
+    # Display the header. A basic overview of how many equity accounts there
+    # are.
+    fmt = '{} of {} equity account(s): total {} ≈ {} {}, {}{}%'
+    to_stdout(fmt.format(
+        ledger.util.colors.colorise(
+            ledger.util.colors.COLOR_PERIOD_NAME,
+            'State',
+        ),
+        len(eq_accounts.keys()),
+        ('profit' if nominal_gain >= 0 else 'loss'),
+        ledger.util.colors.colorise_balance(nominal_gain),
+        default_currency,
+        ledger.util.colors.colorise_balance(percent_gain, gain_sign),
+        ledger.util.colors.colorise_balance(percent_gain),
+    ))
+
+    # Discover the maximal length of a company name (ie, the ticker) and the
+    # maximal length of the shares number. This is used later for to align the
+    # report in a readable way.
     company_name_length = 0
     shares_length = 0
     for account in eq_accounts.values():
