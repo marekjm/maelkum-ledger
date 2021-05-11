@@ -8,6 +8,8 @@ class Item:
         self.text = text
         self.timestamp = timestamp
 
+    def to_location(self):
+        return self.text[0].location
 
 class Account_record(Item):
     def __init__(self, text, timestamp, kind, name, balance, tags):
