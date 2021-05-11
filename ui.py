@@ -549,7 +549,7 @@ def report_total_equity(accounts, book, default_currency):
             to_stdout(this_fmt.format(
                 cb(value_for_color, company.rjust(company_name_length)),
                 c(COLOR_SHARE_PRICE, fmt_share_price.format(share_price)),
-                c(COLOR_SHARE_COUNT, fmt_share_count.format(share_price)),
+                c(COLOR_SHARE_COUNT, fmt_share_count.format(no_of_shares)),
                 c(COLOR_SHARE_WORTH, fmt_share_worth.format(worth)),
                 cb(gain_nominal, fmt_gain_nominal),
                 account['currency'],
