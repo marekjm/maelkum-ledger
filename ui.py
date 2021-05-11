@@ -238,17 +238,6 @@ def report_total_equity(accounts, book, default_currency):
 
     book, currency_basket = book
 
-    # Display the header. A basic overview of how many equity accounts there
-    # are.
-    fmt = '{} of {} equity account(s)'
-    to_stdout(fmt.format(
-        ledger.util.colors.colorise(
-            ledger.util.colors.COLOR_PERIOD_NAME,
-            'State',
-        ),
-        len(eq_accounts.keys()),
-    ))
-
     for name, account in eq_accounts.items():
         account['balance'] = decimal.Decimal()
         account['paid'] = decimal.Decimal()
