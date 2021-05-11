@@ -517,6 +517,10 @@ def report_total_equity(accounts, book, default_currency):
             paid = shares['paid']
             no_of_shares = shares['shares']
 
+            if no_of_shares == 0:
+                # Perhaps all the shares were sold.
+                continue
+
             share_price = shares['price_per_share']
             share_price_avg = abs(paid / no_of_shares)
             worth = (share_price * no_of_shares)
