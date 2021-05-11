@@ -475,7 +475,8 @@ def report_total_equity(accounts, book, default_currency):
     shares_length = max(map(lambda _: len(str(_['shares'])),
         account['shares'].values()))
 
-    for name, account in eq_accounts.items():
+    for name in sorted(eq_accounts.keys()):
+        account = eq_accounts[name]
         total_value = account['balance']
 
         gain = account['gain']
