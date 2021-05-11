@@ -757,14 +757,17 @@ def main(args):
         elif type(each) is ledger.ir.Equity_tx:
             inflow = decimal.Decimal()
             outflow = decimal.Decimal()
+
             # There is only one destination account since we can only deposit
             # shares in one account using a single transfer.
             dst_account = None
+            src_account = None
             for a in each.ins:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]['balance'] += a.value[0]
                 inflow += a.value[0]
+                src_account = a.account
             for a in each.outs:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
@@ -806,6 +809,25 @@ def main(args):
             }
 
             kind, name = dst_account
+            if kind != ledger.constants.ACCOUNT_EQUITY_T:
+                kind, name = src_account
+            if kind != ledger.constants.ACCOUNT_EQUITY_T:
+                fmt = 'no equity account in transfer of {} shares'
+                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                    ledger.util.colors.colorise(
+                        'white',
+                        each.to_location(),
+                    ),
+                    ledger.util.colors.colorise(
+                        'red',
+                        'error',
+                    ),
+                    ledger.util.colors.colorise(
+                        'white',
+                        company,
+                    ),
+                ))
+                exit(1)
             company = this_shares['company']
             if company not in accounts[kind][name]['shares']:
                 accounts[kind][name]['shares'][company] = {
