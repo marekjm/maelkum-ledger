@@ -439,6 +439,8 @@ def report_total_equity(accounts, book, default_currency):
     nominal_gain = sum(map(lambda e: e[0], total_gain))
     percent_gain = []
     for n, p in total_gain:
+        if p == 0:
+            continue  # Avoid a division by zero on empty accounts.
         r = ((n / nominal_gain) * p) * (p / abs(p))
         percent_gain.append(r)
     percent_gain = sum(percent_gain)
@@ -471,9 +473,10 @@ def report_total_equity(accounts, book, default_currency):
             company_name_length = max(company_name_length, len(name))
             shares_length = max(shares_length, len(str(shares['shares'])))
 
-    max(map(len, account['shares'].keys()))
-    shares_length = max(map(lambda _: len(str(_['shares'])),
-        account['shares'].values()))
+    shares_length = 0
+    if len(account['shares'].keys()):
+        shares_length = max(map(lambda _: len(str(_['shares'])),
+            account['shares'].values()))
 
     for name in sorted(eq_accounts.keys()):
         account = eq_accounts[name]
