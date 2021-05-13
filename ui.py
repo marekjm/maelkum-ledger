@@ -803,7 +803,7 @@ def main(args):
                         },
                     }
 
-            pps = (-inflow / this_shares['no'])
+            pps = abs(-inflow / this_shares['no'])
 
             this_tx = {
                 'base': each,
