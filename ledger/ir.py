@@ -1,6 +1,8 @@
 import datetime
+import sys
 
 from . import constants
+from . import util
 
 
 class Item:
@@ -9,7 +11,20 @@ class Item:
         self.timestamp = timestamp
 
     def to_location(self):
-        return self.text[0].location
+        try:
+            return self.text[0].location
+        except Exception:
+            fmt = 'invalid implementation of to_location() for {}'
+            sys.stdout.write(('<internal ledger error>: {}: ' + fmt + '\n').format(
+                util.colors.colorise(
+                    'red',
+                    'error',
+                ),
+                util.colors.colorise(
+                    'white',
+                    '{}'.format(util.string.typename(self)),
+                ),
+            ))
 
 class Account_record(Item):
     def __init__(self, text, timestamp, kind, name, balance, tags):
@@ -30,6 +45,9 @@ class Account_mod(Item):
 
     def __gt__(self, x):
         return (self.value[0] > x) if self.value[0] is not None else False
+
+    def to_location(self):
+        return self.text.location
 
 class Balance_record(Item):
     def __init__(self, text, timestamp, accounts):
