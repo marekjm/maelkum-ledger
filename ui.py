@@ -684,6 +684,23 @@ def main(args):
                 ),
             ))
             exit(1)
+        if name not in accounts[kind]:
+            fmt = 'account {} does not exist'
+            sys.stdout.write(('{}: {}: ' + fmt + '\n').format(
+                ledger.util.colors.colorise(
+                    'white',
+                    a.to_location(),
+                ),
+                ledger.util.colors.colorise(
+                    'red',
+                    'error',
+                ),
+                ledger.util.colors.colorise(
+                    'white',
+                    '{}/{}'.format(kind, name),
+                ),
+            ))
+            exit(1)
         account_currency = accounts[kind][name]['currency']
         tx_currency = a.value[1]
         if account_currency != tx_currency:
