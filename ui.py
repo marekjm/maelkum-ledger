@@ -828,11 +828,8 @@ def main(args):
                 'shares': this_shares,
             }
 
-            kind, name = dst_account
-            if kind != ledger.constants.ACCOUNT_EQUITY_T:
-                kind, name = src_account
-            if kind != ledger.constants.ACCOUNT_EQUITY_T:
-                fmt = 'no equity account in transfer of {} shares'
+            if -outflow != (inflow - fee_value):
+                fmt = 'inflow {} from {} does not equal outflow {} to {} plus fees {}'
                 sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
                     ledger.util.colors.colorise(
                         'white',
@@ -844,28 +841,107 @@ def main(args):
                     ),
                     ledger.util.colors.colorise(
                         'white',
-                        company,
+                        inflow,
+                    ),
+                    ledger.util.colors.colorise(
+                        'white',
+                        '/'.join(src_account),
+                    ),
+                    ledger.util.colors.colorise(
+                        'white',
+                        '/'.join(dst_account),
+                    ),
+                    ledger.util.colors.colorise(
+                        'white',
+                        outflow,
+                    ),
+                    ledger.util.colors.colorise(
+                        'white',
+                        fee_value,
                     ),
                 ))
                 exit(1)
-            company = this_shares['company']
-            if company not in accounts[kind][name]['shares']:
-                accounts[kind][name]['shares'][company] = {
-                    'shares': 0,
-                    'price_per_share': decimal.Decimal(),
-                    'fees': decimal.Decimal(),
-                    'dividends': decimal.Decimal(),
-                    'txs': [],
-                    # FIXME are these fields below really needed?
-                    'balance': decimal.Decimal(),
-                    'paid': decimal.Decimal(),
-                    'value': decimal.Decimal(),
-                    'total_return': decimal.Decimal(),
-                }
 
-            accounts[kind][name]['shares'][company]['txs'].append(this_tx)
-            accounts[kind][name]['shares'][company]['price_per_share'] = pps
-            accounts[kind][name]['companies'].add(company)
+            both_equity = (
+                    dst_account[0] == ledger.constants.ACCOUNT_EQUITY_T
+                and src_account[0] == ledger.constants.ACCOUNT_EQUITY_T)
+            if both_equity:
+                dst_kind, dst_name = dst_account
+                src_kind, src_name = src_account
+
+                company = this_shares['company']
+                if company not in accounts[dst_kind][dst_name]['shares']:
+                    accounts[dst_kind][dst_name]['shares'][company] = {
+                        'shares': 0,
+                        'price_per_share': decimal.Decimal(),
+                        'fees': decimal.Decimal(),
+                        'dividends': decimal.Decimal(),
+                        'txs': [],
+                        # FIXME are these fields below really needed?
+                        'balance': decimal.Decimal(),
+                        'paid': decimal.Decimal(),
+                        'value': decimal.Decimal(),
+                        'total_return': decimal.Decimal(),
+                    }
+
+                accounts[dst_kind][dst_name]['shares'][company]['txs'].append(this_tx)
+                accounts[dst_kind][dst_name]['shares'][company]['price_per_share'] = pps
+                accounts[dst_kind][dst_name]['companies'].add(company)
+
+                this_tx = {
+                    'base': each,
+                    'value': inflow,
+                    'shares': {
+                        'company': company,
+                        'no': -decimal.Decimal(shares[1]),
+                        'fee': {
+                            'currency': fee_currency,
+                            'amount': decimal.Decimal(),
+                        },
+                    },
+                }
+                accounts[src_kind][src_name]['shares'][company]['txs'].append(this_tx)
+                accounts[src_kind][src_name]['shares'][company]['price_per_share'] = pps
+                accounts[src_kind][src_name]['companies'].add(company)
+            else:
+                kind, name = dst_account
+                if kind != ledger.constants.ACCOUNT_EQUITY_T:
+                    kind, name = src_account
+                if kind != ledger.constants.ACCOUNT_EQUITY_T:
+                    fmt = 'no equity account in transfer of {} shares'
+                    sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                        ledger.util.colors.colorise(
+                            'white',
+                            each.to_location(),
+                        ),
+                        ledger.util.colors.colorise(
+                            'red',
+                            'error',
+                        ),
+                        ledger.util.colors.colorise(
+                            'white',
+                            company,
+                        ),
+                    ))
+                    exit(1)
+                company = this_shares['company']
+                if company not in accounts[kind][name]['shares']:
+                    accounts[kind][name]['shares'][company] = {
+                        'shares': 0,
+                        'price_per_share': decimal.Decimal(),
+                        'fees': decimal.Decimal(),
+                        'dividends': decimal.Decimal(),
+                        'txs': [],
+                        # FIXME are these fields below really needed?
+                        'balance': decimal.Decimal(),
+                        'paid': decimal.Decimal(),
+                        'value': decimal.Decimal(),
+                        'total_return': decimal.Decimal(),
+                    }
+
+                accounts[kind][name]['shares'][company]['txs'].append(this_tx)
+                accounts[kind][name]['shares'][company]['price_per_share'] = pps
+                accounts[kind][name]['companies'].add(company)
         if type(each) is ledger.ir.Dividend_tx:
             for a in each.outs:
                 ensure_currency_match(accounts, a)
