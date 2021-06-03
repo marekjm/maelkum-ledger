@@ -26,6 +26,9 @@ class Item:
                 ),
             ))
 
+    def effective_date(self):
+        return self.timestamp
+
 class Account_record(Item):
     def __init__(self, text, timestamp, kind, name, balance, tags):
         super().__init__(text, timestamp)
