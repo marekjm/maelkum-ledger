@@ -37,6 +37,12 @@ class Account_record(Item):
         self.balance = balance
         self.tags = tags
 
+class Account_close(Item):
+    def __init__(self, text, timestamp, kind, name):
+        super().__init__(text, timestamp)
+        self.kind = kind
+        self.name = name
+
 class Account_mod(Item):
     def __init__(self, text, timestamp, account, value):
         super().__init__(text, timestamp)
@@ -56,9 +62,6 @@ class Balance_record(Item):
     def __init__(self, text, timestamp, accounts):
         super().__init__(text, timestamp)
         self.accounts = accounts
-
-    def effective_date(self):
-        return self.timestamp
 
 
 class Transaction_record(Item):

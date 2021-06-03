@@ -44,6 +44,8 @@ def report_total_impl(period, account_types, accounts, book, default_currency):
     reserves_foreign = decimal.Decimal()
     for t in account_types:
         for name, acc in accounts[t].items():
+            if not acc['active']:
+                continue
             if acc['currency'] == default_currency:
                 reserves_default += acc['balance']
             else:
@@ -140,6 +142,8 @@ def report_total_balances(accounts, book, default_currency):
     longest_account_name = 0
     for t in ACCOUNT_TYPES:
         for a in accounts[t].keys():
+            if not accounts[t][a]['active']:
+                continue
             longest_account_name = max(longest_account_name, len(a))
 
     def sort_main_on_top(accounts):
@@ -154,6 +158,9 @@ def report_total_balances(accounts, book, default_currency):
         for name in sort_main_on_top(accounts[t]):
             acc = accounts[t][name]
             tags = acc['tags']
+
+            if not acc['active']:
+                continue
 
             if 'overview' not in tags:
                 continue
@@ -628,6 +635,7 @@ def main(args):
                 exit(1)
 
             account_data = {
+                'active': True,
                 'balance': each.balance[0],
                 'currency': each.balance[1],
                 'created': each.timestamp,
@@ -661,6 +669,19 @@ def main(args):
                 }
 
             accounts[kind][name] = account_data
+        if type(each) is ledger.ir.Account_close:
+            kind = each.kind
+            name = each.name
+
+            if name not in accounts[kind]:
+                sys.stderr.write('{}: error: {} account `{}` does not exists\n'.format(
+                    each.text[0].location,
+                    kind,
+                    name,
+                ))
+                exit(1)
+
+            accounts[kind][name]['active'] = False
 
     # Then, process transactions (ie, revenues, expenses, dividends, transfers)
     # to get an accurate picture of balances.

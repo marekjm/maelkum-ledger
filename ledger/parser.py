@@ -50,6 +50,23 @@ def parse_open_account(lines):
         tags,
     )
 
+def parse_close_account(lines):
+    source = []
+
+    # Parse the `open account DATETIME KIND NAME` line.
+    source.append(lines[0])
+    parts = str(source[-1]).split()
+    timestamp = datetime.datetime.strptime(parts[2], '%Y-%m-%dT%H:%M')
+    kind = parts[3]
+    name = parts[4]
+
+    return len(source), ir.Account_close(
+        source,
+        timestamp,
+        kind,
+        name,
+    )
+
 def parse_currency_rates(lines):
     source = []
 
@@ -409,6 +426,8 @@ def parse(lines):
         item = None
         if parts[0] == 'open':
             n, item = parse_open_account(lines[i:])
+        elif parts[0] == 'close':
+            n, item = parse_close_account(lines[i:])
         elif parts[0] == 'currency_rates':
             n, item = parse_currency_rates(lines[i:])
         elif parts[0] == 'set':
