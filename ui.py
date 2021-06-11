@@ -825,6 +825,11 @@ def main(args):
                     fee_currency = fee[1]
                     fee_value = decimal.Decimal(fee[0])
 
+            # FIXME check currency
+            if fee_value:
+                kind, name = src_account
+                accounts[kind][name]['balance'] += fee_value
+
             this_shares = None
             for t in each.tags:
                 s = str(t).strip()
