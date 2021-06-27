@@ -47,6 +47,8 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
         p()
         return
 
+    expense_sinks = {}
+    expense_values = []
     total_expenses = decimal.Decimal()
     for each in expenses:
         ins_sum = decimal.Decimal()
@@ -97,6 +99,14 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
                     ins_sum += (val[0] / rate)
                 else:
                     ins_sum += (val[0] * rate)
+        for exout in each.outs:
+            kind, sink = exout.account
+            if kind is not None:
+                continue
+            if sink not in expense_sinks:
+                expense_sinks[sink] = decimal.Decimal()
+            expense_sinks[sink] += ins_sum
+        expense_values.append(ins_sum)
         total_expenses += ins_sum
     p('  Expenses:   {} {}'.format(
         util.colors.colorise(
@@ -110,12 +120,14 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
         p()
         return
 
+    revenue_values = []
     total_revenues = decimal.Decimal()
     for rx in revenues:
+        rev_sum = decimal.Decimal()
         for each in rx.outs:
             value_raw, currency = each.value
             if currency == default_currency:
-                total_revenues += value_raw
+                rev_sum += value_raw
             else:
                 pair = (currency, default_currency,)
                 rev = False
@@ -150,9 +162,11 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
 
                 rate = rate.rate
                 if rev:
-                    total_revenues += (value_raw / rate)
+                    rev_sum += (value_raw / rate)
                 else:
-                    total_revenues += (value_raw * rate)
+                    rev_sum += (value_raw * rate)
+        revenue_values.append(rev_sum)
+        total_revenues += rev_sum
 
     p('  Revenues:   {} {}'.format(
         util.colors.colorise(
@@ -189,6 +203,56 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
             f'{er:5.2f}',
         ),
     ))
+
+    # Expense value ranges, average and median, and other statistics.
+    if True:
+        avg_expense = abs(util.math.mean(expense_values))
+        med_expense = abs(util.math.median(expense_values))
+        max_expense = abs(min(expense_values))
+        min_expense = abs(max(expense_values))
+        p('  Expense range is {:.2f} ∾ {:.2f} {}.'.format(
+            min_expense,
+            max_expense,
+            default_currency,
+        ))
+        p('     ...average is {:.2f} {}.'.format(
+            avg_expense,
+            default_currency,
+        ))
+        p('      ...median is {:.2f} {}.'.format(
+            med_expense,
+            default_currency,
+        ))
+
+    # Expense sink statistics.
+    if True:
+        expense_sinks_sorted = sorted(expense_sinks.items(),
+            key = lambda each: each[1])
+
+        sink_1st = expense_sinks_sorted[0]
+        sink_2nd = expense_sinks_sorted[1]
+        sink_3rd = expense_sinks_sorted[2]
+
+        fmt_value = lambda value: '{{:{}.2f}}'.format(
+            len(str(abs(sink_1st[1])))).format(value)
+
+        p('  Expense sink 1st: {} {} {}'.format(
+            fmt_value(abs(sink_1st[1])), default_currency, sink_1st[0],
+        ))
+        p('               2nd: {} {} {}'.format(
+            fmt_value(abs(sink_2nd[1])), default_currency, sink_2nd[0],
+        ))
+        p('               3rd: {} {} {}'.format(
+            fmt_value(abs(sink_3rd[1])), default_currency, sink_3rd[0],
+        ))
+
+        extra_sinks = 3
+        for n in range(3, 3 + extra_sinks):
+            sink_nth = expense_sinks_sorted[n]
+            p('               {}th: {} {} {}'.format(
+                (n + 1), fmt_value(abs(sink_nth[1])), default_currency, sink_nth[0],
+            ))
+
     p()
 
 def report_day_impl(to_out, period_day, period_name, book, default_currency):

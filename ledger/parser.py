@@ -186,7 +186,7 @@ def parse_expense_record(lines):
             currency = parts[-1]
             account = account.split('/')
         else:
-            account = (None, account,)
+            account = (None, str(source[-1]).strip(),)
 
         accounts.append(ir.Account_mod(
             source[-1],
