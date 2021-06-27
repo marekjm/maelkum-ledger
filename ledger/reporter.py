@@ -68,24 +68,24 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
                     except KeyError:
                         fmt = 'no currency pair {}/{} for {} account named {}'
                         sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                            ledger.util.colors.colorise(
+                            util.colors.colorise(
                                 'white',
                                 acc['~'].text[0].location,
                             ),
-                            ledger.util.colors.colorise(
+                            util.colors.colorise(
                                 'red',
                                 'error',
                             ),
-                            ledger.util.colors.colorise(
+                            util.colors.colorise(
                                 'white',
                                 currency,
                             ),
-                            ledger.util.colors.colorise(
+                            util.colors.colorise(
                                 'white',
                                 default_currency,
                             ),
                             t,
-                            ledger.util.colors.colorise(
+                            util.colors.colorise(
                                 'white',
                                 name,
                             ),
@@ -316,6 +316,473 @@ def report_all_time(to_out, book, default_currency):
         default_currency,
     )
 
+ACCOUNT_ASSET_T = 'asset'
+ACCOUNT_LIABILITY_T = 'liability'
+ACCOUNT_EQUITY_T = 'equity'
+ACCOUNT_TYPES = (
+    ACCOUNT_ASSET_T,
+    ACCOUNT_LIABILITY_T,
+    ACCOUNT_EQUITY_T,
+)
+
+def to_impl(stream, fmt, *args, **kwargs):
+    stream.write((fmt + '\n').format(*args, **kwargs))
+
+to_stdout = lambda fmt, *args, **kwargs: to_impl(sys.stdout, fmt, *args, **kwargs)
+to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwargs)
+
+def report_total_impl(period, account_types, accounts, book, default_currency):
+    reserves_default = decimal.Decimal()
+    reserves_foreign = decimal.Decimal()
+    for t in account_types:
+        for name, acc in accounts[t].items():
+            if not acc['active']:
+                continue
+            if acc['currency'] == default_currency:
+                reserves_default += acc['balance']
+            else:
+                _, currency_basket = book
+
+                pair = (acc['currency'], default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, acc['currency'],)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for {} account named {}'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            util.colors.colorise(
+                                'white',
+                                acc['~'].text[0].location,
+                            ),
+                            util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                acc['currency'],
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                            t,
+                            util.colors.colorise(
+                                'white',
+                                name,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    reserves_foreign += (acc['balance'] / rate)
+                else:
+                    reserves_foreign += (acc['balance'] * rate)
+
+    reserves_total = (reserves_default + reserves_foreign)
+
+    no_of_accounts = 0
+    for t in account_types:
+        no_of_accounts += len(accounts[t].keys())
+
+    fmt = '{} on all {} account(s): '
+    if reserves_foreign:
+        fmt += '≈{} {} ({} {} + ≈{} {} in foreign currencies)'
+    else:
+        fmt += '{} {}'
+
+    to_stdout(fmt.format(
+        util.colors.colorise(
+            util.colors.COLOR_PERIOD_NAME,
+            period,
+        ),
+        no_of_accounts,
+        util.colors.colorise_balance(
+            reserves_total if reserves_foreign else reserves_default),
+        default_currency,
+        util.colors.colorise_balance(
+            reserves_default if reserves_foreign else reserves_total),
+        default_currency,
+        util.colors.colorise_balance(reserves_foreign),
+        default_currency,
+    ))
+
+def report_total_reserves(accounts, book, default_currency):
+    report_total_impl(
+        'Reserve',
+        (ACCOUNT_ASSET_T, ACCOUNT_LIABILITY_T,),
+        accounts,
+        book,
+        default_currency,
+    )
+
+def report_total_balances(accounts, book, default_currency):
+    report_total_impl(
+        'Balance',
+        ACCOUNT_TYPES,
+        accounts,
+        book,
+        default_currency,
+    )
+
+    longest_account_name = 0
+    for t in ACCOUNT_TYPES:
+        for a in accounts[t].keys():
+            if not accounts[t][a]['active']:
+                continue
+            longest_account_name = max(longest_account_name, len(a))
+
+    def sort_main_on_top(accounts):
+        keys = sorted(accounts.keys())
+        keys = sorted(
+            keys,
+            key = lambda k: ('main' in accounts[k]['tags']),
+            reverse = True,
+        )
+        return keys
+    for t in ACCOUNT_TYPES:
+        for name in sort_main_on_top(accounts[t]):
+            acc = accounts[t][name]
+            tags = acc['tags']
+
+            if not acc['active']:
+                continue
+
+            if 'overview' not in tags:
+                continue
+
+            m = ''
+
+            balance_raw = acc['balance']
+            fmt = '  {}: {} {}'
+            m += fmt.format(
+                name.ljust(longest_account_name),
+                util.colors.colorise_balance(balance_raw, '{:8.2f}'),
+                acc['currency'],
+            )
+
+            balance_in_default = None
+            rate = None
+            if acc['currency'] != default_currency and acc['balance']:
+                _, currency_basket = book
+
+                pair = (acc['currency'], default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, acc['currency'],)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for {} account named {}'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            util.colors.colorise(
+                                'white',
+                                acc['~'].text[0].location,
+                            ),
+                            util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                acc['currency'],
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                            t,
+                            util.colors.colorise(
+                                'white',
+                                name,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    balance_in_default = (balance_raw / rate)
+                else:
+                    balance_in_default = (balance_raw * rate)
+
+                # FIXME display % gain/loss depending on exchange rate
+                fmt = ' ≅ {} {} at {} {}/{} rate'
+                m += fmt.format(
+                    util.colors.colorise_balance(
+                        (balance_in_default or 0),
+                        '{:7.2f}',
+                    ),
+                    default_currency,
+                    util.colors.colorise(
+                        util.colors.COLOR_EXCHANGE_RATE,
+                        rate,
+                    ),
+                    acc['currency'],
+                    default_currency,
+                )
+
+            to_stdout(m)
+
+def report_total_equity(accounts, book, default_currency):
+    eq_accounts = accounts['equity']
+
+    book, currency_basket = book
+
+    total_gain = []
+    for name, account in eq_accounts.items():
+        gain = account['gain']
+        gain_nominal = gain['nominal']
+        gain_percent = gain['percent']
+
+        if account['currency'] != default_currency:
+            pair = (account['currency'], default_currency,)
+            rev = False
+            try:
+                rate = currency_basket['rates'][pair]
+            except KeyError:
+                try:
+                    pair = (default_currency, account['currency'],)
+                    rate = currency_basket['rates'][pair]
+                    rev = True
+                except KeyError:
+                    fmt = 'no currency pair {}/{} for {} account named {}'
+                    sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                        util.colors.colorise(
+                            'white',
+                            account['~'].text[0].location,
+                        ),
+                        util.colors.colorise(
+                            'red',
+                            'error',
+                        ),
+                        util.colors.colorise(
+                            'white',
+                            account['currency'],
+                        ),
+                        util.colors.colorise(
+                            'white',
+                            default_currency,
+                        ),
+                        t,
+                        util.colors.colorise(
+                            'white',
+                            name,
+                        ),
+                    ))
+                    exit(1)
+
+            rate = rate.rate
+            if rev:
+                gain_nominal = (gain_nominal / rate)
+            else:
+                gain_nominal = (gain_nominal * rate)
+
+        total_gain.append((gain_nominal, gain_percent,))
+
+    nominal_gain = sum(map(lambda e: e[0], total_gain))
+    percent_gain = []
+    for n, p in total_gain:
+        if p == 0:
+            continue  # Avoid a division by zero on empty accounts.
+        r = ((n / nominal_gain) * p) * (p / abs(p))
+        percent_gain.append(r)
+    percent_gain = sum(percent_gain)
+
+    gain_sign = ('+' if nominal_gain > 0 else '')
+
+    # Display the header. A basic overview of how many equity accounts there
+    # are.
+    fmt = '{} of {} equity account(s): total {} ≈ {} {}, {}{}%'
+    to_stdout(fmt.format(
+        util.colors.colorise(
+            util.colors.COLOR_PERIOD_NAME,
+            'State',
+        ),
+        len(eq_accounts.keys()),
+        ('profit' if nominal_gain >= 0 else 'loss'),
+        util.colors.colorise_balance(nominal_gain),
+        default_currency,
+        util.colors.colorise_balance(percent_gain, gain_sign),
+        util.colors.colorise_balance(percent_gain),
+    ))
+
+    # Discover the maximal length of a company name (ie, the ticker) and the
+    # maximal length of the shares number. This is used later for to align the
+    # report in a readable way.
+    company_name_length = 0
+    shares_length = 0
+    for account in eq_accounts.values():
+        for name, shares in account['shares'].items():
+            company_name_length = max(company_name_length, len(name))
+            shares_length = max(shares_length, len(str(shares['shares'])))
+
+    shares_length = 0
+    if len(account['shares'].keys()):
+        shares_length = max(map(lambda _: len(str(_['shares'])),
+            account['shares'].values()))
+
+    for name in sorted(eq_accounts.keys()):
+        account = eq_accounts[name]
+        total_value = account['balance']
+
+        if (not account['shares']) or (not total_value):
+            continue
+
+        gain = account['gain']
+        gain_nominal = gain['nominal']
+        gain_percent = gain['percent']
+        gain_sign = ('+' if gain_percent > 0 else '')
+
+        companies_with_loss = len(list(
+            filter(lambda x: (x < 0),
+            map(lambda x: x['total_return']['nominal'],
+            filter(lambda x: x['shares'],
+            account['shares'].values(),
+        )))))
+
+        if True:
+            fmt_overview = '  {} => {} {} ({} {}, {}{}%)'
+            m = fmt_overview.format(
+                name,
+                util.colors.colorise_balance(total_value),
+                account['currency'],
+                util.colors.colorise_balance(gain_nominal),
+                account['currency'],
+                util.colors.colorise_balance(gain_nominal, gain_sign),
+                util.colors.colorise_balance(gain_percent),
+            )
+
+            if account['currency'] != default_currency:
+                balance_raw = total_value
+                pair = (account['currency'], default_currency,)
+                rev = False
+                try:
+                    rate = currency_basket['rates'][pair]
+                except KeyError:
+                    try:
+                        pair = (default_currency, account['currency'],)
+                        rate = currency_basket['rates'][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = 'no currency pair {}/{} for {} account named {}'
+                        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                            util.colors.colorise(
+                                'white',
+                                account['~'].text[0].location,
+                            ),
+                            util.colors.colorise(
+                                'red',
+                                'error',
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                account['currency'],
+                            ),
+                            util.colors.colorise(
+                                'white',
+                                default_currency,
+                            ),
+                            t,
+                            util.colors.colorise(
+                                'white',
+                                name,
+                            ),
+                        ))
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    balance_in_default = (balance_raw / rate)
+                else:
+                    balance_in_default = (balance_raw * rate)
+
+                # FIXME display % gain/loss depending on exchange rate
+                fmt = ' ≅ {} {} at {} {}/{} rate'
+                m += fmt.format(
+                    util.colors.colorise_balance(
+                        (balance_in_default or 0),
+                        '{:7.2f}',
+                    ),
+                    default_currency,
+                    util.colors.colorise(
+                        util.colors.COLOR_EXCHANGE_RATE,
+                        rate,
+                    ),
+                    account['currency'],
+                    default_currency,
+                )
+
+            to_stdout(m)
+
+        fmt = '    {}: {} * {} = {} ({} {}, {}% @ {}{}{} {})'
+        fmt_share_price = '{:8.4f}'
+        fmt_share_count = '{:3.0f}'
+        fmt_share_worth = '{:8.2f}'
+        fmt_gain_nominal = '{:8.2f}'
+        fmt_gain_percent = '{:8.4f}'
+        for company in sorted(account['shares'].keys()):
+            shares = account['shares'][company]
+
+            paid = shares['paid']
+            no_of_shares = shares['shares']
+
+            if no_of_shares == 0:
+                # Perhaps all the shares were sold.
+                continue
+
+            share_price = shares['price_per_share']
+            share_price_avg = abs(paid / no_of_shares)
+            worth = (share_price * no_of_shares)
+
+            gain_nominal = shares['gain']['nominal']
+            gain_percent = shares['gain']['percent']
+            gain_sign = ('+' if gain_percent >= 0 else '')
+            gain_nominal_per_share = (gain_nominal / no_of_shares)
+
+            from ledger.util.colors import colorise_if_possible as c
+            from ledger.util.colors import colorise_balance as cb
+            from ledger.util.colors import (
+                COLOR_SHARE_PRICE,
+                COLOR_SHARE_COUNT,
+                COLOR_SHARE_PRICE_AVG,
+                COLOR_SHARE_WORTH,
+            )
+            this_fmt = fmt[:]
+
+            tr = shares['total_return']
+            value_for_color = gain_percent
+            if tr['relevant']:
+                this_fmt += ', TR: {} {}, {}%'.format(
+                    cb(tr['nominal']),
+                    account['currency'],
+                    cb(tr['percent']),
+                )
+                value_for_color = tr['percent']
+
+            to_stdout(this_fmt.format(
+                cb(value_for_color, company.rjust(company_name_length)),
+                c(COLOR_SHARE_PRICE, fmt_share_price.format(share_price)),
+                c(COLOR_SHARE_COUNT, fmt_share_count.format(no_of_shares)),
+                c(COLOR_SHARE_WORTH, fmt_share_worth.format(worth)),
+                cb(gain_nominal, fmt_gain_nominal),
+                account['currency'],
+                cb(gain_percent, fmt_gain_percent),
+                c(COLOR_SHARE_PRICE_AVG, '{:6.2f}'.format(share_price_avg)),
+                cb(gain_nominal_per_share, gain_sign),
+                cb(gain_nominal_per_share, '{:.4f}'),
+                account['currency'],
+                repr(gain_sign),
+            ))
+
 
 ################################################################################
 # LEGACY STUFF BELOW!
@@ -344,9 +811,9 @@ def legacy_output_table(expenses, revenues, column, include_percentage = False):
     if len(expenses) > 1:
         min_expense = min(map(lambda each: abs(each['value']['amount']), expenses))
         max_expense = max(map(lambda each: abs(each['value']['amount']), expenses))
-        mean_expense = ledger.util.math.mean(list(map(
+        mean_expense = util.math.mean(list(map(
             lambda each: abs(each['value']['amount']), expenses)))
-        median_expense = ledger.util.math.median(list(map(
+        median_expense = util.math.median(list(map(
             lambda each: abs(each['value']['amount']), expenses)))
         p('  Expenses range: {:.2f} - {:.2f} {}'.format(min_expense, max_expense, DEFAULT_CURRENCY))
         if mean_expense != median_expense:
@@ -541,7 +1008,7 @@ def legacy_report_a_month_impl(book, first_day, last_day, name, column):
         if each['value']['currency'] != DEFAULT_CURRENCY:
             continue
         daily_median[each['timestamp'].strftime(DAYSTAMP_FORMAT)] += each['value']['amount']
-    daily_median = ledger.util.math.median(sorted(map(abs, daily_median.values())))
+    daily_median = util.math.median(sorted(map(abs, daily_median.values())))
     Book.screen.print(column = column, text = '  Median daily expense is {:.2f} {}.'.format(
         daily_median,
         DEFAULT_CURRENCY,
