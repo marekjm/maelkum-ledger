@@ -399,20 +399,50 @@ def calculate_equity_values(accounts, book, default_currency):
             for each in shares['txs']:
                 paid += each['value']
                 fee = each['shares']['fee']['amount']
-                paid -= fee
                 fees -= fee
                 shares_no += each['shares']['no']
 
-            # Shares worth at the time.
+            # Don't consider the shares... if there are no shares, eg, when all
+            # of them were sold or transferred to another broker.
+            if not shares_no:
+                continue
+
+            # Shares worth at the current time. A simple calculation taking the
+            # amount of shares and the price of a single share. This is worth of
+            # the shares *on the market* ie, not including any dividends or fees
+            # paid by the owner.
             worth = (shares_no * share_price)
 
-            # Value of the shares; ie, the value that they represent to the
-            # owner after subtracting fees and adding dividends.
+            # Value of the shares *to the owner*. Value is something different
+            # than worth, and is a more abstract value - having meaning only to
+            # the owner and nobody else.
+            #
+            # Value is calculated by taking market worth of the shares and
+            # subtracting any fees paid for acquiring them. Because even if the
+            # shares appreciated, the appreciation must be MORE than the fees
+            # were to make the owner a profit. Then, any dividends that the
+            # shares produced are added, because even if the shares' price did
+            # not grow the value of them to the owner may have been enhanced by
+            # the dividends.
             value = (worth - fees + dividends)
 
+            # Gain is simply a measure of basic profit, calculated using shares'
+            # price growth (positive or negative) as the only variable. Gain is
+            # simply the market worth of shares minus any cost incurred by the
+            # owner in acquiring them.
             gain_nominal = (worth - paid)
             gain_percent = ((worth / paid * 100) - 100)
 
+            # Total return is a measure of the total profit from share ownership
+            # and combines price appreciation with dividend accrual.
+            #
+            # From long-term point of view it is a bit better gauge of success
+            # than gain. Gain, however, is a better measure of short-term
+            # situation.
+            #
+            # Decision whether to buy more can be taken looking at gain, but the
+            # overall assessment of investment's success should be taken using
+            # total return.
             tr_nominal = (worth - paid + dividends)
             tr_percent = ((tr_nominal / paid) * 100)
             tr = {
