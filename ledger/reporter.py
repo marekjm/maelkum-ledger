@@ -33,7 +33,8 @@ def get_txs_of_period(period_span, txs):
 
     return (expenses, revenues,)
 
-def report_common_impl(to_out, txs, book, default_currency, totals = False):
+def report_common_impl(to_out, txs, book, default_currency, totals = False,
+        monthly_breakdown = None):
     book, currency_basket = book
 
     expenses, revenues = txs
@@ -108,13 +109,22 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
             expense_sinks[sink] += ins_sum
         expense_values.append(ins_sum)
         total_expenses += ins_sum
-    p('  Expenses:   {} {}'.format(
+    fmt = '  Expenses:   {} {}'.format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_NEGATIVE,
-            '{:7.2f}'.format(abs(total_expenses)),
+            '{:8.2f}'.format(abs(total_expenses)),
         ),
         default_currency,
-    ))
+    )
+    if monthly_breakdown is not None:
+        fmt += '  (p/m: {} {})'.format(
+            util.colors.colorise(
+                util.colors.COLOR_BALANCE_NEGATIVE,
+                '{:7.2f}'.format(abs(total_expenses) / monthly_breakdown),
+            ),
+            default_currency,
+        )
+    p(fmt)
 
     if not revenues:
         p()
@@ -168,28 +178,47 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False):
         revenue_values.append(rev_sum)
         total_revenues += rev_sum
 
-    p('  Revenues:   {} {}'.format(
+    fmt = '  Revenues:   {} {}'.format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_POSITIVE,
-            '{:7.2f}'.format(abs(total_revenues)),
+            '{:8.2f}'.format(abs(total_revenues)),
         ),
         default_currency,
-    ))
+    )
+    if monthly_breakdown is not None:
+        fmt += '  (p/m: {} {})'.format(
+            util.colors.colorise(
+                util.colors.COLOR_BALANCE_POSITIVE,
+                '{:7.2f}'.format(abs(total_revenues) / monthly_breakdown),
+            ),
+            default_currency,
+        )
+    p(fmt)
 
     net = (total_revenues + total_expenses)
     fmt = '  Net {} {} {}'
     if net < 0:
-        p(fmt.format(
+        fmt = fmt.format(
             'loss:  ',
-            util.colors.colorise_balance(net, '{:7.2f}'),
+            util.colors.colorise_balance(net, '{:8.2f}'),
             default_currency,
-        ))
+        )
     elif net > 0:
-        p(fmt.format(
+        fmt = fmt.format(
             'income:',
-            util.colors.colorise_balance(net, '{:7.2f}'),
+            util.colors.colorise_balance(net, '{:8.2f}'),
             default_currency,
-        ))
+        )
+    if monthly_breakdown is not None:
+        fmt += '  (p/m: {} {})'.format(
+            util.colors.colorise(
+                (util.colors.COLOR_BALANCE_NEGATIVE if net < 0 else
+                    util.colors.COLOR_BALANCE_POSITIVE),
+                '{:7.2f}'.format(net / monthly_breakdown),
+            ),
+            default_currency,
+        )
+    p(fmt)
 
     if not totals:
         return
@@ -273,7 +302,8 @@ def report_day_impl(to_out, period_day, period_name, book, default_currency):
         default_currency = default_currency,
     )
 
-def report_period_impl(to_out, period_span, period_name, book, default_currency):
+def report_period_impl(to_out, period_span, period_name, book, default_currency,
+        monthly_breakdown = None):
     def p(s = ''):
         screen, column = to_out
         screen.print(column, s)
@@ -287,6 +317,13 @@ def report_period_impl(to_out, period_span, period_name, book, default_currency)
             period_end.strftime(constants.DAYSTAMP_FORMAT)),
     ))
 
+    if monthly_breakdown:
+        delta = (period_end - period_begin)
+        # FIXME count months instead of calculating an approximation
+        monthly_breakdown = (delta.days // 30)
+    else:
+        monthly_breakdown = None
+
     book, currency_basket = book
     report_common_impl(
         to_out = to_out,
@@ -294,6 +331,7 @@ def report_period_impl(to_out, period_span, period_name, book, default_currency)
         book = (book, currency_basket,),
         default_currency = default_currency,
         totals = True,
+        monthly_breakdown = monthly_breakdown,
     )
 
 
@@ -361,6 +399,7 @@ def report_this_year(to_out, book, default_currency):
         'This year',
         book,
         default_currency,
+        monthly_breakdown = True,
     )
 
 def report_all_time(to_out, book, default_currency):
@@ -378,6 +417,7 @@ def report_all_time(to_out, book, default_currency):
         'All time',
         book,
         default_currency,
+        monthly_breakdown = True,
     )
 
 ACCOUNT_ASSET_T = 'asset'
