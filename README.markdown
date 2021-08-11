@@ -33,7 +33,7 @@ Based on accounts and transactions.
     # Record expenses :-(
     ex 2019-08-01T12:48
         asset/bank.main_account -15.00 PLN
-        BEST CHINESE PLACE IN TOWN
+        BEST ASIAN FOOD PLACE IN TOWN
     end
 
     # Record transfers between your own accounts :-|
@@ -46,7 +46,7 @@ Based on accounts and transactions.
 
 # Copyright and license
 
-Copyright (C) 2019 Marek Marecki
+Copyright (C) 2019-2021 Marek Marecki
 
 This is Free Software published under GNU GPL v3 license. See LICENSE for full
 text of the license and educate yourself about your rights.
