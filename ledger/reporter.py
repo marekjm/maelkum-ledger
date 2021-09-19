@@ -564,6 +564,9 @@ def report_total_balances(accounts, book, default_currency):
             m = ''
 
             balance_raw = acc['balance']
+            if (balance_raw == 0) and ('only_if_negative' in tags):
+                continue
+
             fmt = '  {}: {} {}'
             m += fmt.format(
                 name.ljust(longest_account_name),
