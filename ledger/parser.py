@@ -412,6 +412,12 @@ def parse_dividend_record(lines):
         ins,
         outs,
         tags,
+    ), ir.Revenue_tx(
+        source,
+        timestamp,
+        ins,
+        outs,
+        tags,
     )
 
 def parse(lines):
@@ -441,7 +447,8 @@ def parse(lines):
         elif parts[0] == 'tx':
             n, item = parse_transfer_record(lines[i:])
         elif parts[0] == 'dividend':
-            n, item = parse_dividend_record(lines[i:])
+            n, item, rx = parse_dividend_record(lines[i:])
+            items.append(rx)
         else:
             print(type(each), repr(each))
             fmt = 'invalid syntax in `{}`'
