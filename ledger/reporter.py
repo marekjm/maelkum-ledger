@@ -234,7 +234,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
     ))
 
     # Expense value ranges, average and median, and other statistics.
-    if True:
+    if expense_values:
         avg_expense = abs(util.math.mean(expense_values))
         med_expense = abs(util.math.median(expense_values))
         max_expense = abs(min(expense_values))
@@ -258,25 +258,40 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
         expense_sinks_sorted = sorted(expense_sinks.items(),
             key = lambda each: each[1])
 
-        sink_1st = expense_sinks_sorted[0]
-        sink_2nd = expense_sinks_sorted[1]
-        sink_3rd = expense_sinks_sorted[2]
+        sink_1st = (
+            expense_sinks_sorted[0]
+            if len(expense_sinks_sorted) > 0
+            else None)
+        sink_2nd = (
+            expense_sinks_sorted[1]
+            if len(expense_sinks_sorted) > 1
+            else None)
+        sink_3rd = (
+            expense_sinks_sorted[2]
+            if len(expense_sinks_sorted) > 2
+            else None)
 
         fmt_value = lambda value: '{{:{}.2f}}'.format(
             len(str(abs(sink_1st[1])))).format(value)
 
-        p('  Expense sink 1st: {} {} {}'.format(
-            fmt_value(abs(sink_1st[1])), default_currency, sink_1st[0],
-        ))
-        p('               2nd: {} {} {}'.format(
-            fmt_value(abs(sink_2nd[1])), default_currency, sink_2nd[0],
-        ))
-        p('               3rd: {} {} {}'.format(
-            fmt_value(abs(sink_3rd[1])), default_currency, sink_3rd[0],
-        ))
+        if sink_1st is not None:
+            p('  Expense sink 1st: {} {} {}'.format(
+                fmt_value(abs(sink_1st[1])), default_currency, sink_1st[0],
+            ))
+        if sink_2nd is not None:
+            p('               2nd: {} {} {}'.format(
+                fmt_value(abs(sink_2nd[1])), default_currency, sink_2nd[0],
+            ))
+        if sink_3rd is not None:
+            p('               3rd: {} {} {}'.format(
+                fmt_value(abs(sink_3rd[1])), default_currency, sink_3rd[0],
+            ))
 
         extra_sinks = 3
         for n in range(3, 3 + extra_sinks):
+            if n >= len(expense_sinks_sorted):
+                break
+
             sink_nth = expense_sinks_sorted[n]
             p('               {}th: {} {} {}'.format(
                 (n + 1), fmt_value(abs(sink_nth[1])), default_currency, sink_nth[0],
