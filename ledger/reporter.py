@@ -120,7 +120,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
         fmt += '  (p/m: {} {})'.format(
             util.colors.colorise(
                 util.colors.COLOR_BALANCE_NEGATIVE,
-                '{:7.2f}'.format(abs(total_expenses) / monthly_breakdown),
+                '{:7.2f}'.format(abs(total_expenses) / (monthly_breakdown or 1)),
             ),
             default_currency,
         )
@@ -189,7 +189,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
         fmt += '  (p/m: {} {})'.format(
             util.colors.colorise(
                 util.colors.COLOR_BALANCE_POSITIVE,
-                '{:7.2f}'.format(abs(total_revenues) / monthly_breakdown),
+                '{:7.2f}'.format(abs(total_revenues) / (monthly_breakdown or 1)),
             ),
             default_currency,
         )
@@ -214,7 +214,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
             util.colors.colorise(
                 (util.colors.COLOR_BALANCE_NEGATIVE if net < 0 else
                     util.colors.COLOR_BALANCE_POSITIVE),
-                '{:7.2f}'.format(net / monthly_breakdown),
+                '{:7.2f}'.format(net / (monthly_breakdown or 1)),
             ),
             default_currency,
         )
