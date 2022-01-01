@@ -50,7 +50,65 @@ def COLOR_BALANCE(balance):
 def colorise_balance(balance, fmt = '{:.2f}'):
     return colorise(COLOR_BALANCE(balance), fmt.format(balance))
 
-def COLOR_SPENT_RATIO(percentage_spent):
+RATIO_COLORS = (
+    'pale_turquoise_1',
+    'sky_blue_1',
+    'steel_blue_1b',
+    'turquoise_2',
+    'dark_turquoise',
+    'deep_sky_blue_1',
+    'deep_sky_blue_2',
+    'deep_sky_blue_3b',
+    'deep_sky_blue_3a',
+    'light_sea_green',
+    'medium_spring_green',
+    'spring_green_3b',
+    'spring_green_3a',
+    'spring_green_4',
+    'green_3a',
+    'green_3b',
+    'chartreuse_3b',
+    'chartreuse_2b',
+    'chartreuse_2a',
+    'chartreuse_1',
+    'green_yellow',
+    'dark_olive_green_2',
+    'pale_green_1b',
+    'light_goldenrod_1',
+    'yellow_1',
+    'yellow_2',
+    'yellow_3b',
+    'sandy_brown',
+    'salmon_1',
+    'orange_3',
+    'dark_goldenrod',
+    'dark_orange_3a',
+    'indian_red_1b',
+    'red_3b',
+    'red_1',
+    'deep_pink_2',
+    'deep_pink_1b',
+    'deep_pink_1a',
+    'deep_pink_4c',
+    'medium_violet_red',
+)
+_delta = (100.0 / len(RATIO_COLORS))
+RATIO_COLORS = tuple(
+    ((_delta * x, _delta * (x + 1)), c,)
+    for x, c
+    in zip(range(len(RATIO_COLORS)), RATIO_COLORS)
+)
+
+def COLOR_SPENT_RATIO(percent):
+    print(percent)
+    for (low, high), colour in RATIO_COLORS:
+        low_match = (percent >= low)
+        high_match = (percent <= high)
+        if low_match and high_match:
+            break
+    return colour
+
+def COLOR_SPENT_RATIO_old(percentage_spent):
     # Monthly revenues allow living for...
     if percentage_spent >= 100.0:   # ...less than a month.
         return 'light_red'
