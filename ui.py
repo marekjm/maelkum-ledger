@@ -98,12 +98,16 @@ def main(args):
     screen.reset()
 
     ledger.reporter.report_this_year((screen, 0), book, default_currency)
-    ledger.reporter.report_all_time((screen, 1), book, default_currency)
+    ledger.reporter.report_last_year((screen, 1), book, default_currency)
     to_stdout(screen.str())
     screen.reset()
 
-    ledger.reporter.report_total_reserves(accounts, book, default_currency)
-    ledger.reporter.report_total_balances(accounts, book, default_currency)
+    ledger.reporter.report_all_time((screen, 1), book, default_currency)
+    ledger.reporter.report_total_reserves((screen, 0), accounts, book, default_currency)
+    ledger.reporter.report_total_balances((screen, 0), accounts, book, default_currency)
+    to_stdout(screen.str())
+    screen.reset()
+
     ledger.reporter.report_total_equity(accounts, book, default_currency)
 
 main(sys.argv[1:])

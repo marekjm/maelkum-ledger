@@ -417,6 +417,26 @@ def report_this_year(to_out, book, default_currency):
         monthly_breakdown = True,
     )
 
+def report_last_year(to_out, book, default_currency):
+    period_end = datetime.datetime.now()
+    period_begin = datetime.datetime.strptime(
+        constants.THIS_YEAR_FORMAT.replace('%Y', str(period_end.year - 1)),
+        constants.THIS_YEAR_FORMAT,
+    )
+    period_end = constants.LAST_YEAR_DAY_FORMAT.replace('%Y', str(period_end.year - 1))
+    period_end = datetime.datetime.strptime(
+        period_end,
+        constants.TIMESTAMP_FORMAT,
+    )
+    report_period_impl(
+        to_out,
+        (period_begin, period_end,),
+        'Last year',
+        book,
+        default_currency,
+        monthly_breakdown = True,
+    )
+
 def report_all_time(to_out, book, default_currency):
     first = None
     for each in book[0]:
@@ -450,7 +470,7 @@ def to_impl(stream, fmt, *args, **kwargs):
 to_stdout = lambda fmt, *args, **kwargs: to_impl(sys.stdout, fmt, *args, **kwargs)
 to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwargs)
 
-def report_total_impl(period, account_types, accounts, book, default_currency):
+def report_total_impl(to_out, period, account_types, accounts, book, default_currency):
     reserves_default = decimal.Decimal()
     reserves_foreign = decimal.Decimal()
     for t in account_types:
@@ -516,7 +536,10 @@ def report_total_impl(period, account_types, accounts, book, default_currency):
     else:
         fmt += '{} {}'
 
-    to_stdout(fmt.format(
+    def p(s = ''):
+        screen, column = to_out
+        screen.print(column, s)
+    (p if to_out is not None else to_stdout)(fmt.format(
         util.colors.colorise(
             util.colors.COLOR_PERIOD_NAME,
             period,
@@ -532,8 +555,9 @@ def report_total_impl(period, account_types, accounts, book, default_currency):
         default_currency,
     ))
 
-def report_total_reserves(accounts, book, default_currency):
+def report_total_reserves(to_out, accounts, book, default_currency):
     report_total_impl(
+        to_out,
         'Reserve',
         (ACCOUNT_ASSET_T, ACCOUNT_LIABILITY_T,),
         accounts,
@@ -541,8 +565,9 @@ def report_total_reserves(accounts, book, default_currency):
         default_currency,
     )
 
-def report_total_balances(accounts, book, default_currency):
+def report_total_balances(to_out, accounts, book, default_currency):
     report_total_impl(
+        to_out,
         'Balance',
         ACCOUNT_TYPES,
         accounts,
@@ -652,7 +677,10 @@ def report_total_balances(accounts, book, default_currency):
                     default_currency,
                 )
 
-            to_stdout(m)
+            def p(s = ''):
+                screen, column = to_out
+                screen.print(column, s)
+            (p if to_out is not None else to_stdout)(m)
 
 def report_total_equity(accounts, book, default_currency):
     eq_accounts = accounts['equity']
