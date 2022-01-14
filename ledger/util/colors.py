@@ -100,7 +100,6 @@ RATIO_COLORS = tuple(
 )
 
 def COLOR_SPENT_RATIO(percent):
-    print(percent)
     for (low, high), colour in RATIO_COLORS:
         low_match = (percent >= low)
         high_match = (percent <= high)
