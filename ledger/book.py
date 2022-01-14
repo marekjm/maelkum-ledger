@@ -402,6 +402,18 @@ def calculate_equity_values(accounts, book, default_currency):
                 fees -= fee
                 shares_no += each['shares']['no']
 
+                # If the share number ever reaches zero we should reset the
+                # calculations, otherwise the results are WILD and should
+                # OUTRAGEOUS loss. This is a quick hack to suppress the
+                # obviously incorrect result. A FIXME if you ever have time to
+                # debug the issue and develop a better solution.
+                #
+                # Only reset the paid value, though. Leave fees and dividends
+                # alone because they are useful for calculating Total Return
+                # even across periods when the position was liquidated.
+                if shares_no == 0:
+                    paid = decimal.Decimal()
+
             # Don't consider the shares... if there are no shares, eg, when all
             # of them were sold or transferred to another broker.
             if not shares_no:
