@@ -197,7 +197,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
 
     net = (total_revenues + total_expenses)
     fmt = '  Net {} {} {}'
-    if net < 0:
+    if net <= 0:
         fmt = fmt.format(
             'loss:  ',
             util.colors.colorise_balance(net, '{:8.2f}'),
