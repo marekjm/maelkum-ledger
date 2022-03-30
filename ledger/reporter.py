@@ -335,7 +335,7 @@ def report_period_impl(to_out, period_span, period_name, book, default_currency,
     if monthly_breakdown:
         delta = (period_end - period_begin)
         # FIXME count months instead of calculating an approximation
-        monthly_breakdown = (delta.days // 30)
+        monthly_breakdown = (decimal.Decimal(delta.days) / 30)
     else:
         monthly_breakdown = None
 
