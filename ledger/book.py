@@ -76,6 +76,11 @@ def setup_accounts(accounts, book_ir):
 def calculate_balances(accounts, book, default_currency):
     book_ir, currency_basket = book
 
+    def currency_matches(accounts, a):
+        kind, name = a.account
+        account_currency = accounts[kind][name]['currency']
+        tx_currency = a.value[1]
+        return (account_currency == tx_currency)
     def ensure_currency_match(accounts, a):
         kind, name = a.account
         if kind is None:
@@ -360,17 +365,65 @@ def calculate_balances(accounts, book, default_currency):
                 accounts[kind][name]['shares'][company]['price_per_share'] = pps
                 accounts[kind][name]['companies'].add(company)
         if type(each) is ir.Dividend_tx:
-            for a in each.outs:
-                ensure_currency_match(accounts, a)
-                kind, name = a.account
-                accounts[kind][name]['balance'] += a.value[0]
             for a in each.ins:
                 kind, name = a.account
-                company, value, _ = a.value
+
+                value, currency = each.outs[0].value
+                synth = each.outs[0]
+                synth = ir.Account_mod(
+                    synth.text,
+                    synth.timestamp,
+                    a.account,
+                    synth.value,
+                )
+                if not currency_matches(accounts, synth):
+                    wanted_currency = accounts[kind][name]['currency']
+
+                    pair = (currency, default_currency,)
+                    rev = False
+                    try:
+                        rate = currency_basket['rates'][pair]
+                    except KeyError:
+                        try:
+                            pair = (default_currency, currency,)
+                            rate = currency_basket['rates'][pair]
+                            rev = True
+                        except KeyError:
+                            fmt = 'no currency pair {}/{} for {} account named {}'
+                            sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                                util.colors.colorise(
+                                    'white',
+                                    acc['~'].text[0].location,
+                                ),
+                                util.colors.colorise(
+                                    'red',
+                                    'error',
+                                ),
+                                util.colors.colorise(
+                                    'white',
+                                    currency,
+                                ),
+                                util.colors.colorise(
+                                    'white',
+                                    default_currency,
+                                ),
+                                t,
+                                util.colors.colorise(
+                                    'white',
+                                    name,
+                                ),
+                            ))
+                            exit(1)
+
+                    rate = rate.rate
+                    if rev:
+                        value = (value / rate)
+                    else:
+                        value = (value * rate)
+
+                company = a.value[0]
                 shares = accounts[kind][name]['shares']
                 shares[company]['dividends'] += value
-
-        # FIXME dividends
 
 def calculate_equity_values(accounts, book, default_currency):
     eq_accounts = accounts['equity']
