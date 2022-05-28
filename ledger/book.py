@@ -156,7 +156,16 @@ def calculate_balances(accounts, book, default_currency):
 
         if type(each) is ir.Exchange_rates_record:
             for r in each.rates:
-                currency_basket['rates'][(str(r.src), str(r.dst),)] = r
+                lhs = str(r.src)
+                rhs = str(r.dst)
+
+                base = (lhs, rhs,)
+                rev = (rhs, lhs,)
+
+                currency_basket['rates'].pop(base, None)
+                currency_basket['rates'].pop(rev, None)
+
+                currency_basket['rates'][base] = r
             continue
 
         if each.effective_date() > this_moment_in_time:
