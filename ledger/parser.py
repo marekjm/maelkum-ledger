@@ -370,6 +370,15 @@ def parse_transfer_record(lines):
     parts = str(source[-1]).split()
     timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
 
+    # This must be exactly zero. The amount of money must stay constant, as it
+    # is only transferred between accounts.
+    transfer_balance = decimal.Decimal()
+
+    # FIXME This is a dirty hack. Transfer records should be balanced, but at
+    # this moment we don't have a currency rate basket available so we just skip
+    # the balance check if there is more than one currency involved.
+    currencies_involved = set()
+
     accounts = []
     i = 1
     while str(lines[i]) not in ('with', 'end',):
@@ -387,6 +396,9 @@ def parse_transfer_record(lines):
             value = decimal.Decimal(parts[-2])
             currency = parts[-1]
             account = account.split('/')
+
+            transfer_balance += value
+            currencies_involved.add(currency)
         else:
             account = (None, account,)
 
@@ -409,6 +421,26 @@ def parse_transfer_record(lines):
             if str(tags[-1]).strip().startswith('shares:'):
                 is_equity_tx = True
             i += 1
+
+    # FIXME Equity transactions may include fees, so can be unbalanced. This
+    # should be checked, but the implementation will have to wait.
+    if (transfer_balance != 0) and (len(currencies_involved) == 1) and not is_equity_tx:
+        fmt = 'unbalanced transfer record: `{}\''
+        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+            util.colors.colorise(
+                'white',
+                source[0].location,
+            ),
+            util.colors.colorise(
+                'red',
+                'error',
+            ),
+            util.colors.colorise(
+                'white',
+                str(transfer_balance),
+            ),
+        ))
+        exit(1)
 
     source.append(lines[i]) # for the `end` line
 
