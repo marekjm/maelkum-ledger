@@ -168,6 +168,8 @@ def parse_expense_record(lines):
     parts = str(source[-1]).split()
     timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
 
+    non_owned_account_present = False
+
     accounts = []
     i = 1
     while str(lines[i]) not in ('with', 'end',):
@@ -182,10 +184,60 @@ def parse_expense_record(lines):
 
         is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
-            value = decimal.Decimal(parts[-2])
+            try:
+                value = decimal.Decimal(parts[-2])
+            except decimal.InvalidOperation:
+                fmt = 'invalid decimal literal: `{}\''
+                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                    util.colors.colorise(
+                        'white',
+                        source[-1].location,
+                    ),
+                    util.colors.colorise(
+                        'red',
+                        'error',
+                    ),
+                    util.colors.colorise(
+                        'white',
+                        str(parts[-2]),
+                    ),
+                ))
+                exit(1)
+
+            if value >= 0:
+                fmt = 'non-negative expense value: `{}\''
+                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                    util.colors.colorise(
+                        'white',
+                        source[-1].location,
+                    ),
+                    util.colors.colorise(
+                        'red',
+                        'error',
+                    ),
+                    util.colors.colorise(
+                        'white',
+                        str(parts[-2]),
+                    ),
+                ))
+
+                fmt = 'expense values from own accounts must be negative'
+                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+                    util.colors.colorise(
+                        'white',
+                        source[-1].location,
+                    ),
+                    util.colors.colorise(
+                        'blue',
+                        'note',
+                    ),
+                ))
+                exit(1)
+
             currency = parts[-1]
             account = account.split('/')
         else:
+            non_owned_account_present = True
             account = (None, str(source[-1]).strip(),)
 
         accounts.append(ir.Account_mod(
@@ -194,6 +246,32 @@ def parse_expense_record(lines):
             account,
             (value, currency,),
         ))
+
+    if not non_owned_account_present:
+        fmt = 'only own accounts in expense record'
+        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+            util.colors.colorise(
+                'white',
+                source[0].location,
+            ),
+            util.colors.colorise(
+                'red',
+                'error',
+            ),
+        ))
+
+        fmt = 'expense records must include a non-owned account'
+        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
+            util.colors.colorise(
+                'white',
+                source[0].location,
+            ),
+            util.colors.colorise(
+                'blue',
+                'note',
+            ),
+        ))
+        exit(1)
 
     tags = []
     if str(lines[i]) == 'with':
