@@ -24,7 +24,7 @@ COLOR_WARNING = 'orange_red_1'
 COLOR_OK = 'green'
 
 COLOR_EXPENSES = 'orange_red_1'
-COLOR_REVENUES = 'medium_spring_green'
+COLOR_REVENUES = 'green'
 COLOR_NEUTRAL = 'light_sea_green'
 
 COLOR_SHARE_PRICE = 'wheat_1'
