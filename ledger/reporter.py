@@ -132,6 +132,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
         p()
         return
 
+    revenue_faucets = {}
     revenue_values = []
     total_revenues = decimal.Decimal()
     for rx in revenues:
@@ -177,6 +178,23 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
                     rev_sum += (value_raw / rate)
                 else:
                     rev_sum += (value_raw * rate)
+        for each in rx.ins:
+            kind, faucet = each.account
+
+            # Revenue from an equity account means dividends, and should be
+            # recorded with the company's ticker as the faucet. Lumping all
+            # revenue sources under the exchange's name would be misleading.
+            #
+            # The revenue does not come from NYSE but from company XYZ.
+            if kind == constants.ACCOUNT_EQUITY_T:
+                faucet = '{} ({})'.format(
+                    each.value[0],  # Name of the company, and of
+                    faucet,         # the account in which the shares are held.
+                )
+
+            if faucet not in revenue_faucets:
+                revenue_faucets[faucet] = decimal.Decimal()
+            revenue_faucets[faucet] += rev_sum
         revenue_values.append(rev_sum)
         total_revenues += rev_sum
 
@@ -255,11 +273,26 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
             default_currency,
         ))
 
+    is_all_time_report = ((
+        max(revenues[-1].timestamp, revenues[-1].timestamp)
+        - min(revenues[0].timestamp, revenues[0].timestamp)).days > 366)
+
+    expense_sinks_sorted = sorted(expense_sinks.items(),
+        key = lambda each: each[1])
+    revenue_faucets_sorted = sorted(revenue_faucets.items(),
+        key = lambda each: each[1],
+        reverse = True)
+
+    sink_faucet_value_len = max(
+        expense_sinks_sorted[0][1],
+        revenue_faucets_sorted[0][1])
+    sink_faucet_value_len = len('{:.2f}'.format(abs(sink_faucet_value_len)))
+    fmt_value = lambda value: ('{{:{}.2f}}'
+        .format(sink_faucet_value_len)
+        .format(value))
+
     # Expense sink statistics.
     if True:
-        expense_sinks_sorted = sorted(expense_sinks.items(),
-            key = lambda each: each[1])
-
         sink_1st = (
             expense_sinks_sorted[0]
             if len(expense_sinks_sorted) > 0
@@ -273,30 +306,123 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
             if len(expense_sinks_sorted) > 2
             else None)
 
-        fmt_value = lambda value: '{{:{}.2f}}'.format(
-            len(str(abs(sink_1st[1])))).format(value)
+        cv = lambda s: util.colors.colorise(
+            util.colors.COLOR_EXPENSES,
+            s)
+        cp = lambda s: util.colors.colorise(
+            'white',
+            f'{s:5.2f}%')
 
         if sink_1st is not None:
-            p('  Expense sink 1st: {} {} {}'.format(
-                fmt_value(abs(sink_1st[1])), default_currency, sink_1st[0],
+            p('  Expense sink   1st: {} {} {} {}'.format(
+                cv(fmt_value(abs(sink_1st[1]))),
+                default_currency,
+                cp((sink_1st[1] / total_expenses) * 100),
+                sink_1st[0],
             ))
         if sink_2nd is not None:
-            p('               2nd: {} {} {}'.format(
-                fmt_value(abs(sink_2nd[1])), default_currency, sink_2nd[0],
+            p('                 2nd: {} {} {} {}'.format(
+                cv(fmt_value(abs(sink_2nd[1]))),
+                default_currency,
+                cp((sink_2nd[1] / total_expenses) * 100),
+                sink_2nd[0],
             ))
         if sink_3rd is not None:
-            p('               3rd: {} {} {}'.format(
-                fmt_value(abs(sink_3rd[1])), default_currency, sink_3rd[0],
+            p('                 3rd: {} {} {} {}'.format(
+                cv(fmt_value(abs(sink_3rd[1]))),
+                default_currency,
+                cp((sink_3rd[1] / total_expenses) * 100),
+                sink_3rd[0],
             ))
 
-        extra_sinks = 3
+        extra_sinks = 1 + (2 if monthly_breakdown else 0)
+
+        if is_all_time_report:
+            extra_sinks += 34
+
+        fmt = (
+            '               {:3d}th: {} {} {} {}'
+            if monthly_breakdown else
+            '                 {:1d}th: {} {} {} {}'
+        )
         for n in range(3, 3 + extra_sinks):
             if n >= len(expense_sinks_sorted):
                 break
 
             sink_nth = expense_sinks_sorted[n]
-            p('               {}th: {} {} {}'.format(
-                (n + 1), fmt_value(abs(sink_nth[1])), default_currency, sink_nth[0],
+            p(fmt.format(
+                (n + 1),
+                cv(fmt_value(abs(sink_nth[1]))),
+                default_currency,
+                cp((sink_nth[1] / total_expenses) * 100),
+                sink_nth[0],
+            ))
+
+    # Expense faucet statistics.
+    if True:
+        faucet_1st = (
+            revenue_faucets_sorted[0]
+            if len(revenue_faucets_sorted) > 0
+            else None)
+        faucet_2nd = (
+            revenue_faucets_sorted[1]
+            if len(revenue_faucets_sorted) > 1
+            else None)
+        faucet_3rd = (
+            revenue_faucets_sorted[2]
+            if len(revenue_faucets_sorted) > 2
+            else None)
+
+        cv = lambda s: util.colors.colorise(
+            util.colors.COLOR_REVENUES,
+            s)
+        cp = lambda s: util.colors.colorise(
+            'white',
+            f'{s:5.2f}%')
+
+        if faucet_1st is not None:
+            p('  Revenue faucet 1st: {} {} {} {}'.format(
+                cv(fmt_value(abs(faucet_1st[1]))),
+                default_currency,
+                cp((faucet_1st[1] / total_revenues) * 100),
+                faucet_1st[0],
+            ))
+        if faucet_2nd is not None:
+            p('                 2nd: {} {} {} {}'.format(
+                cv(fmt_value(abs(faucet_2nd[1]))),
+                default_currency,
+                cp((faucet_2nd[1] / total_revenues) * 100),
+                faucet_2nd[0],
+            ))
+        if faucet_3rd is not None:
+            p('                 3rd: {} {} {} {}'.format(
+                cv(fmt_value(abs(faucet_3rd[1]))),
+                default_currency,
+                cp((faucet_3rd[1] / total_revenues) * 100),
+                faucet_3rd[0],
+            ))
+
+        extra_faucets = 0 + (3 if monthly_breakdown else 0)
+
+        if is_all_time_report:
+            extra_faucets += 39
+
+        fmt = (
+            '               {:3d}th: {} {} {} {}'
+            if monthly_breakdown else
+            '                 {:1d}th: {} {} {} {}'
+        )
+        for n in range(3, 3 + extra_faucets):
+            if n >= len(revenue_faucets_sorted):
+                break
+
+            faucet_nth = revenue_faucets_sorted[n]
+            p(fmt.format(
+                (n + 1),
+                cv(fmt_value(abs(faucet_nth[1]))),
+                default_currency,
+                cp((faucet_nth[1] / total_revenues) * 100),
+                faucet_nth[0],
             ))
 
     p()
