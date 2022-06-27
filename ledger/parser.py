@@ -314,7 +314,6 @@ def parse_revenue_record(lines):
         source.append(lines[i])
         i += 1
 
-        # print(source[-1])
         parts = str(source[-1]).strip().rsplit()
         account = parts[0]
         value = None
