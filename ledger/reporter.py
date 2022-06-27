@@ -810,10 +810,17 @@ def report_total_balances(to_out, accounts, book, default_currency):
                 screen.print(column, s)
             (p if to_out is not None else to_stdout)(m)
 
-def report_total_equity(accounts, book, default_currency):
+def report_total_equity(to_out, accounts, book, default_currency):
     eq_accounts = accounts['equity']
 
     book, currency_basket = book
+
+    def p(s = ''):
+        if to_out is not None:
+            screen, column = to_out
+            screen.print(column, s)
+        else:
+            to_stdout(s)
 
     total_gain = []
     for name, account in eq_accounts.items():
@@ -868,10 +875,10 @@ def report_total_equity(accounts, book, default_currency):
 
     nominal_gain = sum(map(lambda e: e[0], total_gain))
     percent_gain = []
-    for n, p in total_gain:
-        if p == 0:
+    for nominal, percent in total_gain:
+        if percent == 0:
             continue  # Avoid a division by zero on empty accounts.
-        r = ((n / nominal_gain) * p) * (p / abs(p))
+        r = ((nominal / nominal_gain) * percent) * (percent / abs(percent))
         percent_gain.append(r)
     percent_gain = sum(percent_gain)
 
@@ -880,7 +887,7 @@ def report_total_equity(accounts, book, default_currency):
     # Display the header. A basic overview of how many equity accounts there
     # are.
     fmt = '{} of {} equity account(s): total {} ≈ {} {}, {}{}%'
-    to_stdout(fmt.format(
+    p(fmt.format(
         util.colors.colorise(
             util.colors.COLOR_PERIOD_NAME,
             'State',
@@ -902,6 +909,22 @@ def report_total_equity(accounts, book, default_currency):
         for name, shares in account['shares'].items():
             company_name_length = max(company_name_length, len(name))
             shares_length = max(shares_length, len(str(shares['shares'])))
+
+    # Companies for whom total return is not equal to share price fluctuation
+    # result (eg, because they paid a dividend) have their names prefixed with a
+    # star.
+    #
+    # To make the marker look good it is attached to the company name BEFORE
+    # justification so that it looks like this:
+    #
+    #         * DIVIDEND
+    #        NO-DIVIDEND
+    #
+    # instead of liket this:
+    #
+    #      *    DIVIDEND
+    #        NO-DIVIDEND
+    company_name_length += 2
 
     shares_length = 0
     if len(account['shares'].keys()):
@@ -999,9 +1022,9 @@ def report_total_equity(accounts, book, default_currency):
                     default_currency,
                 )
 
-            to_stdout(m)
+            p(m)
 
-        fmt = '    {}: {} * {} = {} ({} {}, {}% @ {}{}{} {})'
+        fmt = '   {}: {} * {} = {} ({} {}, {}% @ {}{}{} {})'
         fmt_share_price = '{:8.4f}'
         fmt_share_count = '{:3.0f}'
         fmt_share_worth = '{:8.2f}'
@@ -1036,24 +1059,25 @@ def report_total_equity(accounts, book, default_currency):
             )
             this_fmt = fmt[:]
 
+            result_nominal = gain_nominal
+            result_percent = gain_percent
+
             tr = shares['total_return']
             value_for_color = gain_percent
             if tr['relevant']:
-                this_fmt += ', TR: {} {}, {}%'.format(
-                    cb(tr['nominal']),
-                    account['currency'],
-                    cb(tr['percent']),
-                )
+                result_nominal = tr['nominal']
+                result_percent = tr['percent']
                 value_for_color = tr['percent']
 
-            to_stdout(this_fmt.format(
+            company = (f'* {company}' if tr['relevant'] else company)
+            p(this_fmt.format(
                 cb(value_for_color, company.rjust(company_name_length)),
                 c(COLOR_SHARE_PRICE, fmt_share_price.format(share_price)),
                 c(COLOR_SHARE_COUNT, fmt_share_count.format(no_of_shares)),
                 c(COLOR_SHARE_WORTH, fmt_share_worth.format(worth)),
-                cb(gain_nominal, fmt_gain_nominal),
+                cb(result_nominal, fmt_gain_nominal),
                 account['currency'],
-                cb(gain_percent, fmt_gain_percent),
+                cb(result_percent, fmt_gain_percent),
                 c(COLOR_SHARE_PRICE_AVG, '{:6.2f}'.format(share_price_avg)),
                 cb(gain_nominal_per_share, gain_sign),
                 cb(gain_nominal_per_share, '{:.4f}'),

@@ -105,9 +105,9 @@ def main(args):
     ledger.reporter.report_all_time((screen, 1), book, default_currency)
     ledger.reporter.report_total_reserves((screen, 0), accounts, book, default_currency)
     ledger.reporter.report_total_balances((screen, 0), accounts, book, default_currency)
+    screen.print(0, '')
+    ledger.reporter.report_total_equity((screen, 0), accounts, book, default_currency)
     to_stdout(screen.str())
     screen.reset()
-
-    ledger.reporter.report_total_equity(accounts, book, default_currency)
 
 main(sys.argv[1:])
