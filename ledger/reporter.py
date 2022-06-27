@@ -57,7 +57,7 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
             val = exin.value
             currency = val[1]
             if currency == default_currency:
-                ins_sum += val[0]
+                val = val[0]
             else:
                 pair = (currency, default_currency,)
                 rev = False
@@ -97,9 +97,11 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
 
                 rate = rate.rate
                 if rev:
-                    ins_sum += (val[0] / rate)
+                    val = (val[0] / rate)
                 else:
-                    ins_sum += (val[0] * rate)
+                    val = (val[0] * rate)
+
+            ins_sum += val
         for exout in each.outs:
             kind, sink = exout.account
             if kind is not None:
