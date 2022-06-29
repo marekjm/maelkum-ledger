@@ -277,6 +277,45 @@ def report_common_impl(to_out, txs, book, default_currency, totals = False,
         max(revenues[-1].timestamp, revenues[-1].timestamp)
         - min(revenues[0].timestamp, revenues[0].timestamp)).days > 366)
 
+    # Report net flows from sinks and faucets.
+    #
+    # The same entity can be both an expense sink and a revenue faucet. For
+    # example, you can get rent from an apartment but it also costs money to
+    # renovate and keep up to standard. Anyway, the code below is responsible
+    # for adjusting raw data on the sinks and faucets so that they represent the
+    # net cash flows.
+    #
+    # For personal finance this is a better idea than presenting the same entity
+    # as both faucet and sink for money. It is the net flow that matters the
+    # most at the level of an individual person, I think.
+    faucets_and_sinks = set()
+    faucets_and_sinks.update(expense_sinks.keys())
+    faucets_and_sinks.update(revenue_faucets.keys())
+    for each in faucets_and_sinks:
+        sink = expense_sinks.get(each)
+        faucet = revenue_faucets.get(each)
+        if (sink is None) or (faucet is None):
+            continue
+
+        net = (sink + faucet)
+
+        if abs(net) < decimal.Decimal('0.01'):
+            # If the net is 0 then the entity does not really influence the
+            # outcome. We can derive $$$ of revenue from it, but if it is also a
+            # sink for $$$ then we could ditch interaction with the entity and
+            # the net cash flow would be unaffected.
+            del expense_sinks[each]
+            del revenue_faucets[each]
+            continue
+
+        # Otherwise, the entity is either a net sink, or a net faucet.
+        if net < 0:
+            expense_sinks[each] = net
+            del revenue_faucets[each]
+        else:
+            revenue_faucets[each] = net
+            del expense_sinks[each]
+
     expense_sinks_sorted = sorted(expense_sinks.items(),
         key = lambda each: each[1])
     revenue_faucets_sorted = sorted(revenue_faucets.items(),
