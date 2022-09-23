@@ -637,13 +637,19 @@ def to_impl(stream, fmt, *args, **kwargs):
 to_stdout = lambda fmt, *args, **kwargs: to_impl(sys.stdout, fmt, *args, **kwargs)
 to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwargs)
 
-def report_total_impl(to_out, period, account_types, accounts, book, default_currency):
+def report_total_impl(to_out, period, account_types, accounts, book,
+        default_currency, filter = None):
     reserves_default = decimal.Decimal()
     reserves_foreign = decimal.Decimal()
+    no_of_accounts = 0
     for t in account_types:
         for name, acc in accounts[t].items():
             if not acc['active']:
                 continue
+            if filter is not None and not filter(acc):
+                continue
+
+            no_of_accounts += 1
             if acc['currency'] == default_currency:
                 reserves_default += acc['balance']
             else:
@@ -693,10 +699,6 @@ def report_total_impl(to_out, period, account_types, accounts, book, default_cur
 
     reserves_total = (reserves_default + reserves_foreign)
 
-    no_of_accounts = 0
-    for t in account_types:
-        no_of_accounts += len(accounts[t].keys())
-
     fmt = '{} on all {} account(s): '
     if reserves_foreign:
         fmt += '≈{} {} ({} {} + ≈{} {} in foreign currencies)'
@@ -730,6 +732,7 @@ def report_total_reserves(to_out, accounts, book, default_currency):
         accounts,
         book,
         default_currency,
+        filter = lambda a: ('non_reserve' not in a['tags']),
     )
 
 def report_total_balances(to_out, accounts, book, default_currency):
