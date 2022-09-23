@@ -24,17 +24,22 @@ import ledger
 # ∘
 # ∙
 
+
 def to_impl(stream, fmt, *args, **kwargs):
-    stream.write((fmt + '\n').format(*args, **kwargs))
+    stream.write((fmt + "\n").format(*args, **kwargs))
+
 
 to_stdout = lambda fmt, *args, **kwargs: to_impl(sys.stdout, fmt, *args, **kwargs)
 to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwargs)
 
+
 def main(args):
-    to_stdout("Maelkum's ledger {} ({})".format(
-        ledger.__version__,
-        ledger.__commit__,
-    ))
+    to_stdout(
+        "Maelkum's ledger {} ({})".format(
+            ledger.__version__,
+            ledger.__commit__,
+        )
+    )
 
     book_main = args[0]
     book_lines = ledger.loader.load(book_main)
@@ -48,23 +53,28 @@ def main(args):
         if isinstance(item, ledger.ir.Transaction_record):
             return item.effective_date()
         return item.timestamp
-    book_ir = sorted(book_ir, key = sorting_key)
+
+    book_ir = sorted(book_ir, key=sorting_key)
     # to_stdout('chronologically sorted item(s):'.format(len(book_ir)))
     # to_stdout('\n'.join(map(lambda x: '{} {}'.format(x.timestamp, repr(x)), book_ir)))
 
     ####
 
-    default_currency = 'EUR'
-    accounts = { 'asset': {}, 'liability': {}, 'equity': {}, }
+    default_currency = "EUR"
+    accounts = {
+        "asset": {},
+        "liability": {},
+        "equity": {},
+    }
     txs = []
 
     # First, process configuration to see if there is anything the ledger should
     # be aware of - default currency, budger levels, etc.
     for each in book_ir:
         if type(each) is ledger.ir.Configuration_line:
-            if each.key == 'default-currency':
+            if each.key == "default-currency":
                 default_currency = str(each.value)
-            elif each.key == 'budget': # FIXME TODO
+            elif each.key == "budget":  # FIXME TODO
                 pass
             else:
                 raise
@@ -75,9 +85,15 @@ def main(args):
 
     # Then, process transactions (ie, revenues, expenses, dividends, transfers)
     # to get an accurate picture of balances.
-    currency_basket = { 'rates': {}, 'txs': [], }
+    currency_basket = {
+        "rates": {},
+        "txs": [],
+    }
 
-    book = (book_ir, currency_basket,)
+    book = (
+        book_ir,
+        currency_basket,
+    )
 
     ledger.book.calculate_balances(accounts, book, default_currency)
     ledger.book.calculate_equity_values(accounts, book, default_currency)
@@ -105,9 +121,10 @@ def main(args):
     ledger.reporter.report_all_time((screen, 1), book, default_currency)
     ledger.reporter.report_total_reserves((screen, 0), accounts, book, default_currency)
     ledger.reporter.report_total_balances((screen, 0), accounts, book, default_currency)
-    screen.print(0, '')
+    screen.print(0, "")
     ledger.reporter.report_total_equity((screen, 0), accounts, book, default_currency)
     to_stdout(screen.str())
     screen.reset()
+
 
 main(sys.argv[1:])

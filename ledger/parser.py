@@ -14,7 +14,7 @@ def parse_open_account(lines):
     # Parse the `open account DATETIME KIND NAME` line.
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[2], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[2], "%Y-%m-%dT%H:%M")
     kind = parts[3]
     name = parts[4]
 
@@ -23,17 +23,23 @@ def parse_open_account(lines):
     parts = str(source[-1]).split()
     balance_currency = parts[-1]
     balance_amount = decimal.Decimal(parts[-2])
-    balance = (balance_amount, balance_currency,)
+    balance = (
+        balance_amount,
+        balance_currency,
+    )
 
     # We either handle the end of the parse, or get a list of tags.
-    if str(lines[2]) not in ('with', 'end',):
+    if str(lines[2]) not in (
+        "with",
+        "end",
+    ):
         raise None
 
     tags = []
-    if str(lines[2]) == 'with':
+    if str(lines[2]) == "with":
         source.append(lines[2])
         i = 3
-        while str(lines[i]) != 'end':
+        while str(lines[i]) != "end":
             tags.append(str(lines[i]).strip())
             source.append(lines[i])
             i += 1
@@ -50,13 +56,14 @@ def parse_open_account(lines):
         tags,
     )
 
+
 def parse_close_account(lines):
     source = []
 
     # Parse the `open account DATETIME KIND NAME` line.
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[2], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[2], "%Y-%m-%dT%H:%M")
     kind = parts[3]
     name = parts[4]
 
@@ -67,34 +74,37 @@ def parse_close_account(lines):
         name,
     )
 
+
 def parse_currency_rates(lines):
     source = []
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
 
     rates = []
     i = 1
-    while str(lines[i]) != 'end':
+    while str(lines[i]) != "end":
         source.append(lines[i])
         i += 1
 
         parts = str(source[-1]).strip().split()
         pair = parts[0]
         rate = decimal.Decimal(parts[1])
-        units = (int(parts[2]) if len(parts) > 2 else 1)
+        units = int(parts[2]) if len(parts) > 2 else 1
 
-        pair = pair.split('/')
+        pair = pair.split("/")
 
-        rates.append(ir.Exchange_rate(
-            source[-1],
-            timestamp,
-            pair[0],
-            pair[1],
-            rate,
-            units,
-        ))
+        rates.append(
+            ir.Exchange_rate(
+                source[-1],
+                timestamp,
+                pair[0],
+                pair[1],
+                rate,
+                units,
+            )
+        )
 
     source.append(lines[i])
 
@@ -104,10 +114,11 @@ def parse_currency_rates(lines):
         rates,
     )
 
+
 def parse_configuration_line(lines):
     source = [lines[0]]
 
-    key, value = str(source[-1]).strip().split(maxsplit = 2)[1:]
+    key, value = str(source[-1]).strip().split(maxsplit=2)[1:]
 
     return 1, ir.Configuration_line(
         source,
@@ -115,43 +126,55 @@ def parse_configuration_line(lines):
         value,
     )
 
+
 def parse_balance_record(lines):
     source = []
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
 
     rates = []
     i = 1
-    while str(lines[i]) != 'end':
+    while str(lines[i]) != "end":
         source.append(lines[i])
         i += 1
 
         parts = str(source[-1]).strip().split()
 
         account = parts[0]
-        account = account.split('/')
+        account = account.split("/")
 
         if account[0] == constants.ACCOUNT_EQUITY_T:
             company = parts[1]
             value = decimal.Decimal(parts[2])
             currency = parts[3]
-            rates.append(ir.Account_mod(
-                source[-1],
-                timestamp,
-                account,
-                (company, value, currency,),
-            ))
+            rates.append(
+                ir.Account_mod(
+                    source[-1],
+                    timestamp,
+                    account,
+                    (
+                        company,
+                        value,
+                        currency,
+                    ),
+                )
+            )
         else:
             value = decimal.Decimal(parts[1])
             currency = parts[2]
-            rates.append(ir.Account_mod(
-                source[-1],
-                timestamp,
-                account,
-                (value, currency,),
-            ))
+            rates.append(
+                ir.Account_mod(
+                    source[-1],
+                    timestamp,
+                    account,
+                    (
+                        value,
+                        currency,
+                    ),
+                )
+            )
 
     source.append(lines[i])
 
@@ -161,18 +184,22 @@ def parse_balance_record(lines):
         rates,
     )
 
+
 def parse_expense_record(lines):
     source = []
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
 
     non_owned_account_present = False
 
     accounts = []
     i = 1
-    while str(lines[i]) not in ('with', 'end',):
+    while str(lines[i]) not in (
+        "with",
+        "end",
+    ):
         source.append(lines[i])
         i += 1
 
@@ -182,108 +209,126 @@ def parse_expense_record(lines):
         value = None
         currency = None
 
-        is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
+        is_own_account = lambda a: (a.split("/")[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
             try:
                 value = decimal.Decimal(parts[-2])
             except decimal.InvalidOperation:
-                fmt = 'invalid decimal literal: `{}\''
-                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                    util.colors.colorise(
-                        'white',
-                        source[-1].location,
-                    ),
-                    util.colors.colorise(
-                        'red',
-                        'error',
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        str(parts[-2]),
-                    ),
-                ))
+                fmt = "invalid decimal literal: `{}'"
+                sys.stderr.write(
+                    ("{}: {}: " + fmt + "\n").format(
+                        util.colors.colorise(
+                            "white",
+                            source[-1].location,
+                        ),
+                        util.colors.colorise(
+                            "red",
+                            "error",
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            str(parts[-2]),
+                        ),
+                    )
+                )
                 exit(1)
 
             if value >= 0:
-                fmt = 'non-negative expense value: `{}\''
-                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                    util.colors.colorise(
-                        'white',
-                        source[-1].location,
-                    ),
-                    util.colors.colorise(
-                        'red',
-                        'error',
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        str(parts[-2]),
-                    ),
-                ))
+                fmt = "non-negative expense value: `{}'"
+                sys.stderr.write(
+                    ("{}: {}: " + fmt + "\n").format(
+                        util.colors.colorise(
+                            "white",
+                            source[-1].location,
+                        ),
+                        util.colors.colorise(
+                            "red",
+                            "error",
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            str(parts[-2]),
+                        ),
+                    )
+                )
 
-                fmt = 'expense values from own accounts must be negative'
-                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                    util.colors.colorise(
-                        'white',
-                        source[-1].location,
-                    ),
-                    util.colors.colorise(
-                        'blue',
-                        'note',
-                    ),
-                ))
+                fmt = "expense values from own accounts must be negative"
+                sys.stderr.write(
+                    ("{}: {}: " + fmt + "\n").format(
+                        util.colors.colorise(
+                            "white",
+                            source[-1].location,
+                        ),
+                        util.colors.colorise(
+                            "blue",
+                            "note",
+                        ),
+                    )
+                )
                 exit(1)
 
             currency = parts[-1]
-            account = account.split('/')
+            account = account.split("/")
         else:
             non_owned_account_present = True
-            account = (None, str(source[-1]).strip(),)
+            account = (
+                None,
+                str(source[-1]).strip(),
+            )
 
-        accounts.append(ir.Account_mod(
-            source[-1],
-            timestamp,
-            account,
-            (value, currency,),
-        ))
+        accounts.append(
+            ir.Account_mod(
+                source[-1],
+                timestamp,
+                account,
+                (
+                    value,
+                    currency,
+                ),
+            )
+        )
 
     if not non_owned_account_present:
-        fmt = 'only own accounts in expense record'
-        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-            util.colors.colorise(
-                'white',
-                source[0].location,
-            ),
-            util.colors.colorise(
-                'red',
-                'error',
-            ),
-        ))
+        fmt = "only own accounts in expense record"
+        sys.stderr.write(
+            ("{}: {}: " + fmt + "\n").format(
+                util.colors.colorise(
+                    "white",
+                    source[0].location,
+                ),
+                util.colors.colorise(
+                    "red",
+                    "error",
+                ),
+            )
+        )
 
-        fmt = 'expense records must include a non-owned account'
-        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-            util.colors.colorise(
-                'white',
-                source[0].location,
-            ),
-            util.colors.colorise(
-                'blue',
-                'note',
-            ),
-        ))
+        fmt = "expense records must include a non-owned account"
+        sys.stderr.write(
+            ("{}: {}: " + fmt + "\n").format(
+                util.colors.colorise(
+                    "white",
+                    source[0].location,
+                ),
+                util.colors.colorise(
+                    "blue",
+                    "note",
+                ),
+            )
+        )
         exit(1)
 
     tags = []
-    if str(lines[i]) == 'with':
-        source.append(lines[i]) # for the `with` line
+    if str(lines[i]) == "with":
+        source.append(lines[i])  # for the `with` line
 
         i += 1
-        while str(lines[i]) != 'end':
+        while str(lines[i]) != "end":
             source.append(lines[i])
             tags.append(source[-1])
             i += 1
 
-    source.append(lines[i]) # for the `end` line
+    source.append(lines[i])  # for the `end` line
 
     ins = []
     outs = []
@@ -301,16 +346,20 @@ def parse_expense_record(lines):
         tags,
     )
 
+
 def parse_revenue_record(lines):
     source = []
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
 
     accounts = []
     i = 1
-    while str(lines[i]) not in ('with', 'end',):
+    while str(lines[i]) not in (
+        "with",
+        "end",
+    ):
         source.append(lines[i])
         i += 1
 
@@ -319,32 +368,40 @@ def parse_revenue_record(lines):
         value = None
         currency = None
 
-        is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
+        is_own_account = lambda a: (a.split("/")[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
             value = decimal.Decimal(parts[-2])
             currency = parts[-1]
-            account = account.split('/')
+            account = account.split("/")
         else:
-            account = (None, str(source[-1]).strip(),)
+            account = (
+                None,
+                str(source[-1]).strip(),
+            )
 
-        accounts.append(ir.Account_mod(
-            source[-1],
-            timestamp,
-            account,
-            (value, currency,),
-        ))
+        accounts.append(
+            ir.Account_mod(
+                source[-1],
+                timestamp,
+                account,
+                (
+                    value,
+                    currency,
+                ),
+            )
+        )
 
     tags = []
-    if str(lines[i]) == 'with':
-        source.append(lines[i]) # for the `with` line
+    if str(lines[i]) == "with":
+        source.append(lines[i])  # for the `with` line
 
         i += 1
-        while str(lines[i]) != 'end':
+        while str(lines[i]) != "end":
             source.append(lines[i])
             tags.append(source[-1])
             i += 1
 
-    source.append(lines[i]) # for the `end` line
+    source.append(lines[i])  # for the `end` line
 
     ins = []
     outs = []
@@ -362,12 +419,13 @@ def parse_revenue_record(lines):
         tags,
     )
 
+
 def parse_transfer_record(lines):
     source = []
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
 
     # This must be exactly zero. The amount of money must stay constant, as it
     # is only transferred between accounts.
@@ -380,7 +438,10 @@ def parse_transfer_record(lines):
 
     accounts = []
     i = 1
-    while str(lines[i]) not in ('with', 'end',):
+    while str(lines[i]) not in (
+        "with",
+        "end",
+    ):
         source.append(lines[i])
         i += 1
 
@@ -390,58 +451,68 @@ def parse_transfer_record(lines):
         value = None
         currency = None
 
-        is_own_account = lambda a: (a.split('/')[0] in constants.ACCOUNT_TYPES)
+        is_own_account = lambda a: (a.split("/")[0] in constants.ACCOUNT_TYPES)
         if is_own_account(account):
             value = decimal.Decimal(parts[-2])
             currency = parts[-1]
-            account = account.split('/')
+            account = account.split("/")
 
             transfer_balance += value
             currencies_involved.add(currency)
         else:
-            account = (None, account,)
+            account = (
+                None,
+                account,
+            )
 
-        accounts.append(ir.Account_mod(
-            source[-1],
-            timestamp,
-            account,
-            (value, currency,),
-        ))
+        accounts.append(
+            ir.Account_mod(
+                source[-1],
+                timestamp,
+                account,
+                (
+                    value,
+                    currency,
+                ),
+            )
+        )
 
     is_equity_tx = False
     tags = []
-    if str(lines[i]) == 'with':
-        source.append(lines[i]) # for the `with` line
+    if str(lines[i]) == "with":
+        source.append(lines[i])  # for the `with` line
 
         i += 1
-        while str(lines[i]) != 'end':
+        while str(lines[i]) != "end":
             source.append(lines[i])
             tags.append(source[-1])
-            if str(tags[-1]).strip().startswith('shares:'):
+            if str(tags[-1]).strip().startswith("shares:"):
                 is_equity_tx = True
             i += 1
 
     # FIXME Equity transactions may include fees, so can be unbalanced. This
     # should be checked, but the implementation will have to wait.
     if (transfer_balance != 0) and (len(currencies_involved) == 1) and not is_equity_tx:
-        fmt = 'unbalanced transfer record: `{}\''
-        sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-            util.colors.colorise(
-                'white',
-                source[0].location,
-            ),
-            util.colors.colorise(
-                'red',
-                'error',
-            ),
-            util.colors.colorise(
-                'white',
-                str(transfer_balance),
-            ),
-        ))
+        fmt = "unbalanced transfer record: `{}'"
+        sys.stderr.write(
+            ("{}: {}: " + fmt + "\n").format(
+                util.colors.colorise(
+                    "white",
+                    source[0].location,
+                ),
+                util.colors.colorise(
+                    "red",
+                    "error",
+                ),
+                util.colors.colorise(
+                    "white",
+                    str(transfer_balance),
+                ),
+            )
+        )
         exit(1)
 
-    source.append(lines[i]) # for the `end` line
+    source.append(lines[i])  # for the `end` line
 
     ins = []
     outs = []
@@ -459,19 +530,23 @@ def parse_transfer_record(lines):
         tags,
     )
 
+
 def parse_dividend_record(lines):
     source = []
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], '%Y-%m-%dT%H:%M')
+    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
 
     company = None
     eq_account = None
 
     accounts = []
     i = 1
-    while str(lines[i]) not in ('with', 'end',):
+    while str(lines[i]) not in (
+        "with",
+        "end",
+    ):
         source.append(lines[i])
         i += 1
 
@@ -479,7 +554,7 @@ def parse_dividend_record(lines):
         parts = str(source[-1]).strip().rsplit()
 
         account = parts[0]
-        account = account.split('/')
+        account = account.split("/")
         kind, name = account
         if kind == constants.ACCOUNT_EQUITY_T:
             company = parts[1]
@@ -489,14 +564,19 @@ def parse_dividend_record(lines):
         value = decimal.Decimal(parts[1])
         currency = parts[2]
 
-        accounts.append(ir.Account_mod(
-            source[-1],
-            timestamp,
-            account,
-            (value, currency,),
-        ))
+        accounts.append(
+            ir.Account_mod(
+                source[-1],
+                timestamp,
+                account,
+                (
+                    value,
+                    currency,
+                ),
+            )
+        )
 
-    source.append(lines[i]) # for the `end` line
+    source.append(lines[i])  # for the `end` line
 
     ins = []
     outs = []
@@ -506,28 +586,38 @@ def parse_dividend_record(lines):
         else:
             ins.append(each)
 
-    ins.append(ir.Account_mod(
-        source[-2],
-        outs[0].timestamp,
-        eq_account,
-        (company, *outs[0].value,)
-    ))
+    ins.append(
+        ir.Account_mod(
+            source[-2],
+            outs[0].timestamp,
+            eq_account,
+            (
+                company,
+                *outs[0].value,
+            ),
+        )
+    )
 
     tags = []
 
-    return len(source), ir.Dividend_tx(
-        source,
-        timestamp,
-        ins,
-        outs,
-        tags,
-    ), ir.Revenue_tx(
-        source,
-        timestamp,
-        ins,
-        outs,
-        tags,
+    return (
+        len(source),
+        ir.Dividend_tx(
+            source,
+            timestamp,
+            ins,
+            outs,
+            tags,
+        ),
+        ir.Revenue_tx(
+            source,
+            timestamp,
+            ins,
+            outs,
+            tags,
+        ),
     )
+
 
 def parse(lines):
     items = []
@@ -539,44 +629,46 @@ def parse(lines):
 
         n = 0
         item = None
-        if parts[0] == 'open':
+        if parts[0] == "open":
             n, item = parse_open_account(lines[i:])
-        elif parts[0] == 'close':
+        elif parts[0] == "close":
             n, item = parse_close_account(lines[i:])
-        elif parts[0] == 'currency_rates':
+        elif parts[0] == "currency_rates":
             n, item = parse_currency_rates(lines[i:])
-        elif parts[0] == 'set':
+        elif parts[0] == "set":
             n, item = parse_configuration_line(lines[i:])
-        elif parts[0] == 'balance':
+        elif parts[0] == "balance":
             n, item = parse_balance_record(lines[i:])
-        elif parts[0] == 'ex':
+        elif parts[0] == "ex":
             n, item = parse_expense_record(lines[i:])
-        elif parts[0] == 'rx':
+        elif parts[0] == "rx":
             n, item = parse_revenue_record(lines[i:])
-        elif parts[0] == 'tx':
+        elif parts[0] == "tx":
             n, item = parse_transfer_record(lines[i:])
-        elif parts[0] == 'dividend':
+        elif parts[0] == "dividend":
             n, item, rx = parse_dividend_record(lines[i:])
             items.append(rx)
         else:
             print(type(each), repr(each))
-            fmt = 'invalid syntax in `{}`'
-            sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                util.colors.colorise(
-                    'white',
-                    each.location,
-                ),
-                util.colors.colorise(
-                    'red',
-                    'error',
-                ),
-                str(each),
-            ))
+            fmt = "invalid syntax in `{}`"
+            sys.stderr.write(
+                ("{}: {}: " + fmt + "\n").format(
+                    util.colors.colorise(
+                        "white",
+                        each.location,
+                    ),
+                    util.colors.colorise(
+                        "red",
+                        "error",
+                    ),
+                    str(each),
+                )
+            )
             exit(1)
-            raise # invalid syntax
+            raise  # invalid syntax
 
         if n == 0:
-            raise # invalid syntax
+            raise  # invalid syntax
 
         if item is not None:
             items.append(item)

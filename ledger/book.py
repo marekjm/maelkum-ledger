@@ -12,25 +12,29 @@ def setup_accounts(accounts, book_ir):
             name = each.name
 
             if name in accounts[kind]:
-                sys.stderr.write('{}: error: {} account `{}` already exists\n'.format(
-                    each.text[0].location,
-                    kind,
-                    name,
-                ))
-                sys.stderr.write('note: {} account `{}` is defined at {}\n'.format(
-                    kind,
-                    name,
-                    accounts[kind][name]['~'].text[0].location,
-                ))
+                sys.stderr.write(
+                    "{}: error: {} account `{}` already exists\n".format(
+                        each.text[0].location,
+                        kind,
+                        name,
+                    )
+                )
+                sys.stderr.write(
+                    "note: {} account `{}` is defined at {}\n".format(
+                        kind,
+                        name,
+                        accounts[kind][name]["~"].text[0].location,
+                    )
+                )
                 exit(1)
 
             account_data = {
-                'active': True,
-                'balance': each.balance[0],
-                'currency': each.balance[1],
-                'created': each.timestamp,
-                'tags': each.tags,
-                '~': each,
+                "active": True,
+                "balance": each.balance[0],
+                "currency": each.balance[1],
+                "created": each.timestamp,
+                "tags": each.tags,
+                "~": each,
             }
 
             # If the account represents an equity account, we need to track a
@@ -42,20 +46,20 @@ def setup_accounts(accounts, book_ir):
                 # First, let's track shares. This is the basic feature of an
                 # equity account and will be the basis of the fluctuating value
                 # of the account.
-                account_data['shares'] = {}
+                account_data["shares"] = {}
 
                 # We also need to track the list of companies that are held in
                 # shares. This is useful where the amount of shares reaches zero
                 # and profit-loss calculations must be reset.
-                account_data['companies'] = set()
+                account_data["companies"] = set()
 
                 # We also need to track profits (or, hopefully not, losses).
                 # Profits are tracked as "nominal" ie, measured in monetary
                 # units (eg, USD, EUR) and "percent" ie, measured in a
                 # percentage increase (or decrease) in value of shares held.
-                account_data['gain'] = {
-                    'nominal': decimal.Decimal(),
-                    'percent': decimal.Decimal(),
+                account_data["gain"] = {
+                    "nominal": decimal.Decimal(),
+                    "percent": decimal.Decimal(),
                 }
 
             accounts[kind][name] = account_data
@@ -64,85 +68,95 @@ def setup_accounts(accounts, book_ir):
             name = each.name
 
             if name not in accounts[kind]:
-                sys.stderr.write('{}: error: {} account `{}` does not exists\n'.format(
-                    each.text[0].location,
-                    kind,
-                    name,
-                ))
+                sys.stderr.write(
+                    "{}: error: {} account `{}` does not exists\n".format(
+                        each.text[0].location,
+                        kind,
+                        name,
+                    )
+                )
                 exit(1)
 
-            accounts[kind][name]['active'] = False
+            accounts[kind][name]["active"] = False
+
 
 def calculate_balances(accounts, book, default_currency):
     book_ir, currency_basket = book
 
     def currency_matches(accounts, a):
         kind, name = a.account
-        account_currency = accounts[kind][name]['currency']
+        account_currency = accounts[kind][name]["currency"]
         tx_currency = a.value[1]
-        return (account_currency == tx_currency)
+        return account_currency == tx_currency
+
     def ensure_currency_match(accounts, a):
         kind, name = a.account
         if kind is None:
-            fmt = 'no currency for non-owned account {}'
-            sys.stdout.write(('{}: {}: ' + fmt + '\n').format(
-                util.colors.colorise(
-                    'white',
-                    a.text.location,
-                ),
-                util.colors.colorise(
-                    'red',
-                    'error',
-                ),
-                util.colors.colorise(
-                    'white',
-                    '{}/{}'.format(kind, name),
-                ),
-            ))
+            fmt = "no currency for non-owned account {}"
+            sys.stdout.write(
+                ("{}: {}: " + fmt + "\n").format(
+                    util.colors.colorise(
+                        "white",
+                        a.text.location,
+                    ),
+                    util.colors.colorise(
+                        "red",
+                        "error",
+                    ),
+                    util.colors.colorise(
+                        "white",
+                        "{}/{}".format(kind, name),
+                    ),
+                )
+            )
             exit(1)
         if name not in accounts[kind]:
-            fmt = 'account {} does not exist'
-            sys.stdout.write(('{}: {}: ' + fmt + '\n').format(
-                util.colors.colorise(
-                    'white',
-                    a.to_location(),
-                ),
-                util.colors.colorise(
-                    'red',
-                    'error',
-                ),
-                util.colors.colorise(
-                    'white',
-                    '{}/{}'.format(kind, name),
-                ),
-            ))
+            fmt = "account {} does not exist"
+            sys.stdout.write(
+                ("{}: {}: " + fmt + "\n").format(
+                    util.colors.colorise(
+                        "white",
+                        a.to_location(),
+                    ),
+                    util.colors.colorise(
+                        "red",
+                        "error",
+                    ),
+                    util.colors.colorise(
+                        "white",
+                        "{}/{}".format(kind, name),
+                    ),
+                )
+            )
             exit(1)
-        account_currency = accounts[kind][name]['currency']
+        account_currency = accounts[kind][name]["currency"]
         tx_currency = a.value[1]
         if account_currency != tx_currency:
-            fmt = 'mismatched currency: account {} is in {}, but value is in {}'
-            sys.stdout.write(('{}: {}: ' + fmt + '\n').format(
-                util.colors.colorise(
-                    'white',
-                    a.text.location,
-                ),
-                util.colors.colorise(
-                    'red',
-                    'error',
-                ),
-                util.colors.colorise(
-                    'white',
-                    '{}/{}'.format(kind, name),
-                ),
-                util.colors.colorise(
-                    'light_green',
-                    account_currency,
-                ),
-                util.colors.colorise(
-                    'red_1',
-                    tx_currency,
-                ),
-            ))
+            fmt = "mismatched currency: account {} is in {}, but value is in {}"
+            sys.stdout.write(
+                ("{}: {}: " + fmt + "\n").format(
+                    util.colors.colorise(
+                        "white",
+                        a.text.location,
+                    ),
+                    util.colors.colorise(
+                        "red",
+                        "error",
+                    ),
+                    util.colors.colorise(
+                        "white",
+                        "{}/{}".format(kind, name),
+                    ),
+                    util.colors.colorise(
+                        "light_green",
+                        account_currency,
+                    ),
+                    util.colors.colorise(
+                        "red_1",
+                        tx_currency,
+                    ),
+                )
+            )
             exit(1)
 
     this_moment_in_time = datetime.datetime.now()
@@ -159,13 +173,19 @@ def calculate_balances(accounts, book, default_currency):
                 lhs = str(r.src)
                 rhs = str(r.dst)
 
-                base = (lhs, rhs,)
-                rev = (rhs, lhs,)
+                base = (
+                    lhs,
+                    rhs,
+                )
+                rev = (
+                    rhs,
+                    lhs,
+                )
 
-                currency_basket['rates'].pop(base, None)
-                currency_basket['rates'].pop(rev, None)
+                currency_basket["rates"].pop(base, None)
+                currency_basket["rates"].pop(rev, None)
 
-                currency_basket['rates'][base] = r
+                currency_basket["rates"][base] = r
             continue
 
         if each.effective_date() > this_moment_in_time:
@@ -176,30 +196,30 @@ def calculate_balances(accounts, book, default_currency):
                 kind, name = b.account
                 if kind == constants.ACCOUNT_EQUITY_T:
                     company, share_price, _ = b.value
-                    shares = accounts[kind][name]['shares']
-                    shares[company]['price_per_share'] = share_price
+                    shares = accounts[kind][name]["shares"]
+                    shares[company]["price_per_share"] = share_price
                 else:
                     ensure_currency_match(accounts, b)
-                    accounts[kind][name]['balance'] = b.value[0]
+                    accounts[kind][name]["balance"] = b.value[0]
         if type(each) is ir.Revenue_tx:
             for a in each.outs:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
-                accounts[kind][name]['balance'] += a.value[0]
+                accounts[kind][name]["balance"] += a.value[0]
         elif type(each) is ir.Expense_tx:
             for a in each.ins:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
-                accounts[kind][name]['balance'] += a.value[0]
+                accounts[kind][name]["balance"] += a.value[0]
         elif type(each) is ir.Transfer_tx:
             for a in each.ins:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
-                accounts[kind][name]['balance'] += a.value[0]
+                accounts[kind][name]["balance"] += a.value[0]
             for a in each.outs:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
-                accounts[kind][name]['balance'] += a.value[0]
+                accounts[kind][name]["balance"] += a.value[0]
         elif type(each) is ir.Equity_tx:
             inflow = decimal.Decimal()
             outflow = decimal.Decimal()
@@ -211,21 +231,21 @@ def calculate_balances(accounts, book, default_currency):
             for a in each.ins:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
-                accounts[kind][name]['balance'] += a.value[0]
+                accounts[kind][name]["balance"] += a.value[0]
                 inflow += a.value[0]
                 src_account = a.account
             for a in each.outs:
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
                 outflow += a.value[0]
-                accounts[kind][name]['balance'] += a.value[0]
+                accounts[kind][name]["balance"] += a.value[0]
                 dst_account = a.account
 
             fee_value = decimal.Decimal()
             fee_currency = default_currency
             for t in each.tags:
                 s = str(t).strip()
-                if s.startswith('fee:'):
+                if s.startswith("fee:"):
                     fee = s.split()[1:]
                     fee_currency = fee[1]
                     fee_value = decimal.Decimal(fee[0])
@@ -233,146 +253,151 @@ def calculate_balances(accounts, book, default_currency):
             # FIXME check currency
             if fee_value:
                 kind, name = src_account
-                accounts[kind][name]['balance'] += fee_value
+                accounts[kind][name]["balance"] += fee_value
 
             this_shares = None
             for t in each.tags:
                 s = str(t).strip()
-                if s.startswith('shares:'):
+                if s.startswith("shares:"):
                     shares = s.split()[1:]
 
                     company = shares[0]
                     this_shares = {
-                        'company': company,
-                        'no': decimal.Decimal(shares[1]),
-                        'fee': {
-                            'currency': fee_currency,
-                            'amount': fee_value,
+                        "company": company,
+                        "no": decimal.Decimal(shares[1]),
+                        "fee": {
+                            "currency": fee_currency,
+                            "amount": fee_value,
                         },
                     }
 
-            pps = abs(-inflow / this_shares['no'])
+            pps = abs(-inflow / this_shares["no"])
 
             this_tx = {
-                'base': each,
-                'value': -inflow,
-                'shares': this_shares,
+                "base": each,
+                "value": -inflow,
+                "shares": this_shares,
             }
 
             if -outflow != (inflow - fee_value):
-                fmt = 'inflow {} from {} does not equal outflow {} to {} plus fees {}'
-                sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                    util.colors.colorise(
-                        'white',
-                        each.to_location(),
-                    ),
-                    util.colors.colorise(
-                        'red',
-                        'error',
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        inflow,
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        '/'.join(src_account),
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        '/'.join(dst_account),
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        outflow,
-                    ),
-                    util.colors.colorise(
-                        'white',
-                        fee_value,
-                    ),
-                ))
+                fmt = "inflow {} from {} does not equal outflow {} to {} plus fees {}"
+                sys.stderr.write(
+                    ("{}: {}: " + fmt + "\n").format(
+                        util.colors.colorise(
+                            "white",
+                            each.to_location(),
+                        ),
+                        util.colors.colorise(
+                            "red",
+                            "error",
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            inflow,
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            "/".join(src_account),
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            "/".join(dst_account),
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            outflow,
+                        ),
+                        util.colors.colorise(
+                            "white",
+                            fee_value,
+                        ),
+                    )
+                )
                 exit(1)
 
             both_equity = (
-                    dst_account[0] == constants.ACCOUNT_EQUITY_T
-                and src_account[0] == constants.ACCOUNT_EQUITY_T)
+                dst_account[0] == constants.ACCOUNT_EQUITY_T
+                and src_account[0] == constants.ACCOUNT_EQUITY_T
+            )
             if both_equity:
                 dst_kind, dst_name = dst_account
                 src_kind, src_name = src_account
 
-                company = this_shares['company']
-                if company not in accounts[dst_kind][dst_name]['shares']:
-                    accounts[dst_kind][dst_name]['shares'][company] = {
-                        'shares': 0,
-                        'price_per_share': decimal.Decimal(),
-                        'fees': decimal.Decimal(),
-                        'dividends': decimal.Decimal(),
-                        'txs': [],
+                company = this_shares["company"]
+                if company not in accounts[dst_kind][dst_name]["shares"]:
+                    accounts[dst_kind][dst_name]["shares"][company] = {
+                        "shares": 0,
+                        "price_per_share": decimal.Decimal(),
+                        "fees": decimal.Decimal(),
+                        "dividends": decimal.Decimal(),
+                        "txs": [],
                         # FIXME are these fields below really needed?
-                        'balance': decimal.Decimal(),
-                        'paid': decimal.Decimal(),
-                        'value': decimal.Decimal(),
-                        'total_return': decimal.Decimal(),
+                        "balance": decimal.Decimal(),
+                        "paid": decimal.Decimal(),
+                        "value": decimal.Decimal(),
+                        "total_return": decimal.Decimal(),
                     }
 
-                accounts[dst_kind][dst_name]['shares'][company]['txs'].append(this_tx)
-                accounts[dst_kind][dst_name]['shares'][company]['price_per_share'] = pps
-                accounts[dst_kind][dst_name]['companies'].add(company)
+                accounts[dst_kind][dst_name]["shares"][company]["txs"].append(this_tx)
+                accounts[dst_kind][dst_name]["shares"][company]["price_per_share"] = pps
+                accounts[dst_kind][dst_name]["companies"].add(company)
 
                 this_tx = {
-                    'base': each,
-                    'value': inflow,
-                    'shares': {
-                        'company': company,
-                        'no': -decimal.Decimal(shares[1]),
-                        'fee': {
-                            'currency': fee_currency,
-                            'amount': decimal.Decimal(),
+                    "base": each,
+                    "value": inflow,
+                    "shares": {
+                        "company": company,
+                        "no": -decimal.Decimal(shares[1]),
+                        "fee": {
+                            "currency": fee_currency,
+                            "amount": decimal.Decimal(),
                         },
                     },
                 }
-                accounts[src_kind][src_name]['shares'][company]['txs'].append(this_tx)
-                accounts[src_kind][src_name]['shares'][company]['price_per_share'] = pps
-                accounts[src_kind][src_name]['companies'].add(company)
+                accounts[src_kind][src_name]["shares"][company]["txs"].append(this_tx)
+                accounts[src_kind][src_name]["shares"][company]["price_per_share"] = pps
+                accounts[src_kind][src_name]["companies"].add(company)
             else:
                 kind, name = dst_account
                 if kind != constants.ACCOUNT_EQUITY_T:
                     kind, name = src_account
                 if kind != constants.ACCOUNT_EQUITY_T:
-                    fmt = 'no equity account in transfer of {} shares'
-                    sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                        util.colors.colorise(
-                            'white',
-                            each.to_location(),
-                        ),
-                        util.colors.colorise(
-                            'red',
-                            'error',
-                        ),
-                        util.colors.colorise(
-                            'white',
-                            company,
-                        ),
-                    ))
+                    fmt = "no equity account in transfer of {} shares"
+                    sys.stderr.write(
+                        ("{}: {}: " + fmt + "\n").format(
+                            util.colors.colorise(
+                                "white",
+                                each.to_location(),
+                            ),
+                            util.colors.colorise(
+                                "red",
+                                "error",
+                            ),
+                            util.colors.colorise(
+                                "white",
+                                company,
+                            ),
+                        )
+                    )
                     exit(1)
-                company = this_shares['company']
-                if company not in accounts[kind][name]['shares']:
-                    accounts[kind][name]['shares'][company] = {
-                        'shares': 0,
-                        'price_per_share': decimal.Decimal(),
-                        'fees': decimal.Decimal(),
-                        'dividends': decimal.Decimal(),
-                        'txs': [],
+                company = this_shares["company"]
+                if company not in accounts[kind][name]["shares"]:
+                    accounts[kind][name]["shares"][company] = {
+                        "shares": 0,
+                        "price_per_share": decimal.Decimal(),
+                        "fees": decimal.Decimal(),
+                        "dividends": decimal.Decimal(),
+                        "txs": [],
                         # FIXME are these fields below really needed?
-                        'balance': decimal.Decimal(),
-                        'paid': decimal.Decimal(),
-                        'value': decimal.Decimal(),
-                        'total_return': decimal.Decimal(),
+                        "balance": decimal.Decimal(),
+                        "paid": decimal.Decimal(),
+                        "value": decimal.Decimal(),
+                        "total_return": decimal.Decimal(),
                     }
 
-                accounts[kind][name]['shares'][company]['txs'].append(this_tx)
-                accounts[kind][name]['shares'][company]['price_per_share'] = pps
-                accounts[kind][name]['companies'].add(company)
+                accounts[kind][name]["shares"][company]["txs"].append(this_tx)
+                accounts[kind][name]["shares"][company]["price_per_share"] = pps
+                accounts[kind][name]["companies"].add(company)
         if type(each) is ir.Dividend_tx:
             for a in each.ins:
                 kind, name = a.account
@@ -386,69 +411,78 @@ def calculate_balances(accounts, book, default_currency):
                     synth.value,
                 )
                 if not currency_matches(accounts, synth):
-                    wanted_currency = accounts[kind][name]['currency']
+                    wanted_currency = accounts[kind][name]["currency"]
 
-                    pair = (currency, default_currency,)
+                    pair = (
+                        currency,
+                        default_currency,
+                    )
                     rev = False
                     try:
-                        rate = currency_basket['rates'][pair]
+                        rate = currency_basket["rates"][pair]
                     except KeyError:
                         try:
-                            pair = (default_currency, currency,)
-                            rate = currency_basket['rates'][pair]
+                            pair = (
+                                default_currency,
+                                currency,
+                            )
+                            rate = currency_basket["rates"][pair]
                             rev = True
                         except KeyError:
-                            fmt = 'no currency pair {}/{} for {} account named {}'
-                            sys.stderr.write(('{}: {}: ' + fmt + '\n').format(
-                                util.colors.colorise(
-                                    'white',
-                                    acc['~'].text[0].location,
-                                ),
-                                util.colors.colorise(
-                                    'red',
-                                    'error',
-                                ),
-                                util.colors.colorise(
-                                    'white',
-                                    currency,
-                                ),
-                                util.colors.colorise(
-                                    'white',
-                                    default_currency,
-                                ),
-                                t,
-                                util.colors.colorise(
-                                    'white',
-                                    name,
-                                ),
-                            ))
+                            fmt = "no currency pair {}/{} for {} account named {}"
+                            sys.stderr.write(
+                                ("{}: {}: " + fmt + "\n").format(
+                                    util.colors.colorise(
+                                        "white",
+                                        acc["~"].text[0].location,
+                                    ),
+                                    util.colors.colorise(
+                                        "red",
+                                        "error",
+                                    ),
+                                    util.colors.colorise(
+                                        "white",
+                                        currency,
+                                    ),
+                                    util.colors.colorise(
+                                        "white",
+                                        default_currency,
+                                    ),
+                                    t,
+                                    util.colors.colorise(
+                                        "white",
+                                        name,
+                                    ),
+                                )
+                            )
                             exit(1)
 
                     rate = rate.rate
                     if rev:
-                        value = (value / rate)
+                        value = value / rate
                     else:
-                        value = (value * rate)
+                        value = value * rate
 
                 company = a.value[0]
-                shares = accounts[kind][name]['shares']
-                shares[company]['dividends'] += value
+                shares = accounts[kind][name]["shares"]
+                shares[company]["dividends"] += value
+
 
 def calculate_equity_values(accounts, book, default_currency):
-    eq_accounts = accounts['equity']
+    eq_accounts = accounts["equity"]
 
     book, currency_basket = book
 
     for name, account in eq_accounts.items():
-        account['balance'] = decimal.Decimal()
-        account['paid'] = decimal.Decimal()
-        account['value'] = decimal.Decimal()
-        account['dividends'] = decimal.Decimal()
-        account['worth'] = decimal.Decimal()
+        account["balance"] = decimal.Decimal()
+        account["paid"] = decimal.Decimal()
+        account["value"] = decimal.Decimal()
+        account["dividends"] = decimal.Decimal()
+        account["worth"] = decimal.Decimal()
 
-        for company, shares in account['shares'].items():
-            share_price = shares['price_per_share']
-            dividends = shares['dividends']
+        for company, shares in account["shares"].items():
+            share_price = shares["price_per_share"]
+            dividends = shares["dividends"]
 
             # Fees paid to acquire the shares.
             fees = decimal.Decimal()
@@ -458,11 +492,11 @@ def calculate_equity_values(accounts, book, default_currency):
             paid = decimal.Decimal()
 
             shares_no = 0
-            for each in shares['txs']:
-                paid += each['value']
-                fee = each['shares']['fee']['amount']
+            for each in shares["txs"]:
+                paid += each["value"]
+                fee = each["shares"]["fee"]["amount"]
                 fees -= fee
-                shares_no += each['shares']['no']
+                shares_no += each["shares"]["no"]
 
                 # If the share number ever reaches zero we should reset the
                 # calculations, otherwise the results are WILD and should
@@ -485,7 +519,7 @@ def calculate_equity_values(accounts, book, default_currency):
             # amount of shares and the price of a single share. This is worth of
             # the shares *on the market* ie, not including any dividends or fees
             # paid by the owner.
-            worth = (shares_no * share_price)
+            worth = shares_no * share_price
 
             # Value of the shares *to the owner*. Value is something different
             # than worth, and is a more abstract value - having meaning only to
@@ -498,14 +532,14 @@ def calculate_equity_values(accounts, book, default_currency):
             # shares produced are added, because even if the shares' price did
             # not grow the value of them to the owner may have been enhanced by
             # the dividends.
-            value = (worth - fees + dividends)
+            value = worth - fees + dividends
 
             # Gain is simply a measure of basic profit, calculated using shares'
             # price growth (positive or negative) as the only variable. Gain is
             # simply the market worth of shares minus any cost incurred by the
             # owner in acquiring them.
-            gain_nominal = (worth - paid)
-            gain_percent = ((worth / paid * 100) - 100)
+            gain_nominal = worth - paid
+            gain_percent = (worth / paid * 100) - 100
 
             # Total return is a measure of the total profit from share ownership
             # and combines price appreciation with dividend accrual.
@@ -517,29 +551,29 @@ def calculate_equity_values(accounts, book, default_currency):
             # Decision whether to buy more can be taken looking at gain, but the
             # overall assessment of investment's success should be taken using
             # total return.
-            tr_nominal = (worth - paid + dividends)
-            tr_percent = ((tr_nominal / paid) * 100)
+            tr_nominal = worth - paid + dividends
+            tr_percent = (tr_nominal / paid) * 100
             tr = {
-                'relevant': (dividends != 0),
-                'nominal': tr_nominal,
-                'percent': tr_percent,
+                "relevant": (dividends != 0),
+                "nominal": tr_nominal,
+                "percent": tr_percent,
             }
 
-            shares['shares'] = shares_no
-            shares['balance'] = worth
-            shares['paid'] = paid
-            shares['value'] = value
-            shares['total_return'] = tr
-            shares['gain'] = {
-                'nominal': gain_nominal,
-                'percent': gain_percent,
+            shares["shares"] = shares_no
+            shares["balance"] = worth
+            shares["paid"] = paid
+            shares["value"] = value
+            shares["total_return"] = tr
+            shares["gain"] = {
+                "nominal": gain_nominal,
+                "percent": gain_percent,
             }
 
             if shares_no:
-                account['balance'] += worth
-                account['paid'] += paid
-                account['value'] += value
-            account['dividends'] += dividends
+                account["balance"] += worth
+                account["paid"] += paid
+                account["value"] += value
+            account["dividends"] += dividends
 
             continue
 
@@ -554,36 +588,39 @@ def calculate_equity_values(accounts, book, default_currency):
             # FIXME Calculations should be reset of the amount of shares
             # ever reaches 0 as that means we sold all our shares, and using
             # old prices after such a point does not make much sense.
-            paid = sum(map(
-                lambda x: (
-                    x['value']
-                    # A clever way of obtaining 1 if the operation was a buy
-                    # and -1 if the operation was a sell.
-                    #
-                    # We need this to correctly calculate the total amount
-                    # of money we have paid for the shares we have. If we
-                    # were buying then we should add the amount to the total
-                    # cost, but if we were selling then we should subtract.
-                    # Multiplying the source amount by either 1 or -1 makes
-                    # it possible to do it in a simple map/sum operation.
-                    #
-                    # Why do we sum source amounts? Because when buying we
-                    # should consider the amount of money we had to give to
-                    # the trading organisation to obtain the shares, and
-                    # when selling we should consider the amount of money we
-                    # got from the market.
-                    * (x['shares']['no'] / abs(x['shares']['no']))
-                ),
-                shares['txs']))
+            paid = sum(
+                map(
+                    lambda x: (
+                        x["value"]
+                        # A clever way of obtaining 1 if the operation was a buy
+                        # and -1 if the operation was a sell.
+                        #
+                        # We need this to correctly calculate the total amount
+                        # of money we have paid for the shares we have. If we
+                        # were buying then we should add the amount to the total
+                        # cost, but if we were selling then we should subtract.
+                        # Multiplying the source amount by either 1 or -1 makes
+                        # it possible to do it in a simple map/sum operation.
+                        #
+                        # Why do we sum source amounts? Because when buying we
+                        # should consider the amount of money we had to give to
+                        # the trading organisation to obtain the shares, and
+                        # when selling we should consider the amount of money we
+                        # got from the market.
+                        * (x["shares"]["no"] / abs(x["shares"]["no"]))
+                    ),
+                    shares["txs"],
+                )
+            )
 
             # What the shares are worth is simple: you take price of one
             # share and multiply it by the amount of shares you own.
-            worth = (shares_no * share_price)
+            worth = shares_no * share_price
 
             # The value of shares for you is not exactly what they are worth
             # on the market. Remember that you paid some fees to acquite
             # them, and that they may have yielded you some dividends.
-            value = (worth - fees + dividends)
+            value = worth - fees + dividends
 
             # Account's balance tells you the worth of your account and is
             # not concerned with any fees that you may have incurred while
@@ -592,38 +629,32 @@ def calculate_equity_values(accounts, book, default_currency):
             # The balance should not be modified if there are no shares for
             # a company. This means that all shares were sold and including
             # their cost in the report would be hugely misleading.
-            account['balance'] += (worth
-                if shares_no
-                else decimal.Decimal(0))
-            account['paid'] += (paid
-                if shares_no
-                else decimal.Decimal(0))
-            account['value'] += (value
-                if shares_no
-                else decimal.Decimal(0))
-            account['dividends'] += dividends
+            account["balance"] += worth if shares_no else decimal.Decimal(0)
+            account["paid"] += paid if shares_no else decimal.Decimal(0)
+            account["value"] += value if shares_no else decimal.Decimal(0)
+            account["dividends"] += dividends
 
-            tr_nominal = (worth + paid + dividends)
+            tr_nominal = worth + paid + dividends
             tr_percent = -((tr_nominal / paid) * 100)
             tr = {
-                'relevant': (dividends != 0),
-                'nominal': tr_nominal,
-                'percent': tr_percent,
+                "relevant": (dividends != 0),
+                "nominal": tr_nominal,
+                "percent": tr_percent,
             }
 
-            shares['balance'] = worth
-            shares['paid'] = paid
-            shares['value'] = value
-            shares['total_return'] = tr
+            shares["balance"] = worth
+            shares["paid"] = paid
+            shares["value"] = value
+            shares["total_return"] = tr
 
         # Include dividends in profit calculations. If the shares went down,
         # but the dividends were healthy then you are still OK.
-        nominal_value = (account['balance'] + account['dividends'])
-        nominal_profit = (nominal_value - account['paid'])
+        nominal_value = account["balance"] + account["dividends"]
+        nominal_profit = nominal_value - account["paid"]
         percent_profit = decimal.Decimal()
-        if account['paid']:  # beware zero division!
-            percent_profit = (((nominal_value / account['paid']) - 1) * 100)
-        account['gain'] = {
-            'nominal': nominal_profit,
-            'percent': percent_profit,
+        if account["paid"]:  # beware zero division!
+            percent_profit = ((nominal_value / account["paid"]) - 1) * 100
+        account["gain"] = {
+            "nominal": nominal_profit,
+            "percent": percent_profit,
         }

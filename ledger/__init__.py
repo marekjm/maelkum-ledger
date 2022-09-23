@@ -1,5 +1,5 @@
-__version__ = '0.5.2'
-__commit__ = 'HEAD'
+__version__ = "0.5.2"
+__commit__ = "HEAD"
 
 import ledger.constants
 import ledger.loader

@@ -14,20 +14,23 @@ class Item:
         try:
             return self.text[0].location
         except Exception:
-            fmt = 'invalid implementation of to_location() for {}'
-            sys.stdout.write(('<internal ledger error>: {}: ' + fmt + '\n').format(
-                util.colors.colorise(
-                    'red',
-                    'error',
-                ),
-                util.colors.colorise(
-                    'white',
-                    '{}'.format(util.string.typename(self)),
-                ),
-            ))
+            fmt = "invalid implementation of to_location() for {}"
+            sys.stdout.write(
+                ("<internal ledger error>: {}: " + fmt + "\n").format(
+                    util.colors.colorise(
+                        "red",
+                        "error",
+                    ),
+                    util.colors.colorise(
+                        "white",
+                        "{}".format(util.string.typename(self)),
+                    ),
+                )
+            )
 
     def effective_date(self):
         return self.timestamp
+
 
 class Account_record(Item):
     def __init__(self, text, timestamp, kind, name, balance, tags):
@@ -37,11 +40,13 @@ class Account_record(Item):
         self.balance = balance
         self.tags = tags
 
+
 class Account_close(Item):
     def __init__(self, text, timestamp, kind, name):
         super().__init__(text, timestamp)
         self.kind = kind
         self.name = name
+
 
 class Account_mod(Item):
     def __init__(self, text, timestamp, account, value):
@@ -57,6 +62,7 @@ class Account_mod(Item):
 
     def to_location(self):
         return self.text.location
+
 
 class Balance_record(Item):
     def __init__(self, text, timestamp, accounts):
@@ -77,8 +83,8 @@ class Transaction_record(Item):
         if self._effective_date:
             return self._effective_date
         for each in self.tags:
-            k, v = str(each).strip().split(':', maxsplit = 1)
-            if k == 'effective_date':
+            k, v = str(each).strip().split(":", maxsplit=1)
+            if k == "effective_date":
                 ed = datetime.datetime.strptime(
                     v.strip(),
                     constants.TIMESTAMP_FORMAT,
@@ -92,23 +98,32 @@ class Transaction_record(Item):
 
 class Revenue_tx(Transaction_record):
     pass
+
+
 class Expense_tx(Transaction_record):
     pass
+
+
 class Transfer_tx(Transaction_record):
     pass
+
+
 class Equity_tx(Transaction_record):
     pass
+
+
 class Dividend_tx(Transaction_record):
     pass
 
 
 class Exchange_rate(Item):
-    def __init__(self, text, timestamp, src, dst, rate, units = 1):
+    def __init__(self, text, timestamp, src, dst, rate, units=1):
         super().__init__(text, timestamp)
         self.src = src
         self.dst = dst
         self.rate = rate
         self.units = units
+
 
 class Exchange_rates_record(Item):
     def __init__(self, text, timestamp, rates):
@@ -118,6 +133,6 @@ class Exchange_rates_record(Item):
 
 class Configuration_line(Item):
     def __init__(self, text, key, value):
-        super().__init__(text, datetime.datetime(1970, 1, 1)) # no timestamp
+        super().__init__(text, datetime.datetime(1970, 1, 1))  # no timestamp
         self.key = key
         self.value = value
