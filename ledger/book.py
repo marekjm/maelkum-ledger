@@ -250,10 +250,7 @@ def calculate_balances(accounts, book, default_currency):
                     fee_currency = fee[1]
                     fee_value = decimal.Decimal(fee[0])
 
-            # FIXME check currency
-            if fee_value:
-                kind, name = src_account
-                accounts[kind][name]["balance"] += fee_value
+            # FIXME fee currency
 
             this_shares = None
             for t in each.tags:
@@ -271,11 +268,11 @@ def calculate_balances(accounts, book, default_currency):
                         },
                     }
 
-            pps = abs(-inflow / this_shares["no"])
+            pps = abs(outflow / this_shares["no"])
 
             this_tx = {
                 "base": each,
-                "value": -inflow,
+                "value": outflow,
                 "shares": this_shares,
             }
 
@@ -344,7 +341,7 @@ def calculate_balances(accounts, book, default_currency):
 
                 this_tx = {
                     "base": each,
-                    "value": inflow,
+                    "value": -inflow,
                     "shares": {
                         "company": company,
                         "no": -decimal.Decimal(shares[1]),
@@ -474,187 +471,73 @@ def calculate_equity_values(accounts, book, default_currency):
     book, currency_basket = book
 
     for name, account in eq_accounts.items():
-        account["balance"] = decimal.Decimal()
-        account["paid"] = decimal.Decimal()
-        account["value"] = decimal.Decimal()
-        account["dividends"] = decimal.Decimal()
-        account["worth"] = decimal.Decimal()
-
         for company, shares in account["shares"].items():
-            share_price = shares["price_per_share"]
-            dividends = shares["dividends"]
+            dividends : decimal.Decimal = shares["dividends"]
+            share_price : decimal.Decimal = shares["price_per_share"]
+            shares_held : int = 0
 
-            # Fees paid to acquire the shares.
+            # Total amount of money used to acquire the current holding of
+            # shares. This value increases when buying shares, and decreases
+            # when selling them.
+            cost_basis = decimal.Decimal()
+
+            # Total amount of fees incurred on the position. This value
+            # increases when buying and selling shares.
             fees = decimal.Decimal()
 
-            # Total amount of money paid for the shares: share price plus any
-            # fees to intermediaries.
-            paid = decimal.Decimal()
+            for tx in shares["txs"]:
+                tx_fee = abs(tx["shares"]["fee"]["amount"])
+                tx_value = tx["value"]
+                tx_shares = tx["shares"]["no"]
 
-            shares_no = 0
-            for each in shares["txs"]:
-                paid += each["value"]
-                fee = each["shares"]["fee"]["amount"]
-                fees -= fee
-                shares_no += each["shares"]["no"]
+                shares_held += tx_shares
 
-                # If the share number ever reaches zero we should reset the
-                # calculations, otherwise the results are WILD and should
-                # OUTRAGEOUS loss. This is a quick hack to suppress the
-                # obviously incorrect result. A FIXME if you ever have time to
-                # debug the issue and develop a better solution.
-                #
-                # Only reset the paid value, though. Leave fees and dividends
-                # alone because they are useful for calculating Total Return
-                # even across periods when the position was liquidated.
-                if shares_no == 0:
-                    paid = decimal.Decimal()
+                transaction_sign = (tx_shares / abs(tx_shares))
+                v = (transaction_sign * tx_value) - tx_fee
+                if tx_shares < 0 and v > 0:
+                    raise Exception(name, company, tx_shares, (tx_value, tx_fee), transaction_sign, v)
+                cost_basis += v
 
-            # Don't consider the shares... if there are no shares, eg, when all
-            # of them were sold or transferred to another broker.
-            if not shares_no:
-                continue
+                fees += tx_fee
 
-            # Shares worth at the current time. A simple calculation taking the
-            # amount of shares and the price of a single share. This is worth of
-            # the shares *on the market* ie, not including any dividends or fees
-            # paid by the owner.
-            worth = shares_no * share_price
+            shares["v2_shares_held"] = shares_held
+            shares["v2_cost_basis"] = cost_basis
+            shares["v2_fees"] = fees
 
-            # Value of the shares *to the owner*. Value is something different
-            # than worth, and is a more abstract value - having meaning only to
-            # the owner and nobody else.
-            #
-            # Value is calculated by taking market worth of the shares and
-            # subtracting any fees paid for acquiring them. Because even if the
-            # shares appreciated, the appreciation must be MORE than the fees
-            # were to make the owner a profit. Then, any dividends that the
-            # shares produced are added, because even if the shares' price did
-            # not grow the value of them to the owner may have been enhanced by
-            # the dividends.
-            value = worth - fees + dividends
+            market_value = shares_held * share_price
+            shares["v2_market_value"] = market_value
 
-            # Gain is simply a measure of basic profit, calculated using shares'
-            # price growth (positive or negative) as the only variable. Gain is
-            # simply the market worth of shares minus any cost incurred by the
-            # owner in acquiring them.
-            gain_nominal = worth - paid
-            gain_percent = (worth / paid * 100) - 100
+            total_return = market_value - cost_basis + dividends
+            shares["v2_total_return"] = total_return
 
-            # Total return is a measure of the total profit from share ownership
-            # and combines price appreciation with dividend accrual.
-            #
-            # From long-term point of view it is a bit better gauge of success
-            # than gain. Gain, however, is a better measure of short-term
-            # situation.
-            #
-            # Decision whether to buy more can be taken looking at gain, but the
-            # overall assessment of investment's success should be taken using
-            # total return.
-            tr_nominal = worth - paid + dividends
-            tr_percent = (tr_nominal / paid) * 100
-            tr = {
-                "relevant": (dividends != 0),
-                "nominal": tr_nominal,
-                "percent": tr_percent,
-            }
+        # Market value
+        #
+        # This is a value representing the account's worth on the market, or its
+        # liquidation value. It is a simple sum of each position's market value.
+        account["v2_market_value"] = decimal.Decimal()
 
-            shares["shares"] = shares_no
-            shares["balance"] = worth
-            shares["paid"] = paid
-            shares["value"] = value
-            shares["total_return"] = tr
-            shares["gain"] = {
-                "nominal": gain_nominal,
-                "percent": gain_percent,
-            }
+        # Cost basis
+        #
+        # This is the sum of each position's cost ie, what you had to pay to
+        # acquire the shares.
+        # This value increases when buying shares, and decreases when selling
+        # them by the value of the transaction. In both cases, the cost basis is
+        # increased by the fees incurred.
+        #
+        # If you bought 100 shares of FOO for 1 EUR each, and incurred a 1 EUR
+        # fee your cost basis would be 101 EUR for 100 shares.
+        # If you then sold 50 shares for 1 EUR each, and incurred another 1 EUR
+        # fee your cost basis would be 52 EUR for 50 shares.
+        account["v2_cost_basis"] = decimal.Decimal()
 
-            if shares_no:
-                account["balance"] += worth
-                account["paid"] += paid
-                account["value"] += value
-            account["dividends"] += dividends
+        # Total return
+        #
+        # Total return is calculated as current market value minus cost basis,
+        # plus any dividends. For the whole account it can be trivially
+        # calculated as a sum of total return of each position.
+        account["v2_total_return"] = decimal.Decimal()
 
-            continue
-
-            # Here is the total money that you had to pay to obtain the
-            # shares. It is the source price because what you paid not only
-            # includes the shares' worth, but also the fees.
-            #
-            # Note that the amount may be negative (if you were only buying
-            # shares or sold them with a loss) or positive (if you sold
-            # shares with a profit).
-            #
-            # FIXME Calculations should be reset of the amount of shares
-            # ever reaches 0 as that means we sold all our shares, and using
-            # old prices after such a point does not make much sense.
-            paid = sum(
-                map(
-                    lambda x: (
-                        x["value"]
-                        # A clever way of obtaining 1 if the operation was a buy
-                        # and -1 if the operation was a sell.
-                        #
-                        # We need this to correctly calculate the total amount
-                        # of money we have paid for the shares we have. If we
-                        # were buying then we should add the amount to the total
-                        # cost, but if we were selling then we should subtract.
-                        # Multiplying the source amount by either 1 or -1 makes
-                        # it possible to do it in a simple map/sum operation.
-                        #
-                        # Why do we sum source amounts? Because when buying we
-                        # should consider the amount of money we had to give to
-                        # the trading organisation to obtain the shares, and
-                        # when selling we should consider the amount of money we
-                        # got from the market.
-                        * (x["shares"]["no"] / abs(x["shares"]["no"]))
-                    ),
-                    shares["txs"],
-                )
-            )
-
-            # What the shares are worth is simple: you take price of one
-            # share and multiply it by the amount of shares you own.
-            worth = shares_no * share_price
-
-            # The value of shares for you is not exactly what they are worth
-            # on the market. Remember that you paid some fees to acquite
-            # them, and that they may have yielded you some dividends.
-            value = worth - fees + dividends
-
-            # Account's balance tells you the worth of your account and is
-            # not concerned with any fees that you may have incurred while
-            # acquiting the wealth.
-            #
-            # The balance should not be modified if there are no shares for
-            # a company. This means that all shares were sold and including
-            # their cost in the report would be hugely misleading.
-            account["balance"] += worth if shares_no else decimal.Decimal(0)
-            account["paid"] += paid if shares_no else decimal.Decimal(0)
-            account["value"] += value if shares_no else decimal.Decimal(0)
-            account["dividends"] += dividends
-
-            tr_nominal = worth + paid + dividends
-            tr_percent = -((tr_nominal / paid) * 100)
-            tr = {
-                "relevant": (dividends != 0),
-                "nominal": tr_nominal,
-                "percent": tr_percent,
-            }
-
-            shares["balance"] = worth
-            shares["paid"] = paid
-            shares["value"] = value
-            shares["total_return"] = tr
-
-        # Include dividends in profit calculations. If the shares went down,
-        # but the dividends were healthy then you are still OK.
-        nominal_value = account["balance"] + account["dividends"]
-        nominal_profit = nominal_value - account["paid"]
-        percent_profit = decimal.Decimal()
-        if account["paid"]:  # beware zero division!
-            percent_profit = ((nominal_value / account["paid"]) - 1) * 100
-        account["gain"] = {
-            "nominal": nominal_profit,
-            "percent": percent_profit,
-        }
+        for stats in account["shares"].values():
+            account["v2_cost_basis"] += stats["v2_cost_basis"]
+            account["v2_market_value"] += stats["v2_market_value"]
+            account["v2_total_return"] += stats["v2_total_return"]

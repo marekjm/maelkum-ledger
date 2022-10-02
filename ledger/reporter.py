@@ -354,14 +354,16 @@ def report_common_impl(
         revenue_faucets.items(), key=lambda each: each[1], reverse=True
     )
 
-    sink_faucet_value_len = max(
-        expense_sinks_sorted[0][1], revenue_faucets_sorted[0][1]
-    )
+    sink_faucet_value_len = 0
+    if expense_sinks_sorted:
+        sink_faucet_value_len = max(sink_faucet_value_len, expense_sinks_sorted[0][1])
+    if revenue_faucets_sorted:
+        sink_faucet_value_len = max(sink_faucet_value_len, revenue_faucets_sorted[0][1])
     sink_faucet_value_len = len("{:.2f}".format(abs(sink_faucet_value_len)))
     fmt_value = lambda value: ("{{:{}.2f}}".format(sink_faucet_value_len).format(value))
 
     # Expense sink statistics.
-    if True:
+    if expense_sinks_sorted:
         sink_1st = expense_sinks_sorted[0] if len(expense_sinks_sorted) > 0 else None
         sink_2nd = expense_sinks_sorted[1] if len(expense_sinks_sorted) > 1 else None
         sink_3rd = expense_sinks_sorted[2] if len(expense_sinks_sorted) > 2 else None
@@ -423,7 +425,7 @@ def report_common_impl(
             )
 
     # Expense faucet statistics.
-    if True:
+    if revenue_faucets_sorted:
         faucet_1st = (
             revenue_faucets_sorted[0] if len(revenue_faucets_sorted) > 0 else None
         )
@@ -972,172 +974,17 @@ def report_total_equity(to_out, accounts, book, default_currency):
         else:
             to_stdout(s)
 
-    total_gain = []
-    for name, account in eq_accounts.items():
-        gain = account["gain"]
-        gain_nominal = gain["nominal"]
-        gain_percent = gain["percent"]
+    if True:
+        total_market_value = decimal.Decimal()
+        total_cost_basis = decimal.Decimal()
+        total_return = decimal.Decimal()
 
-        if account["currency"] != default_currency:
-            pair = (
-                account["currency"],
-                default_currency,
-            )
-            rev = False
-            try:
-                rate = currency_basket["rates"][pair]
-            except KeyError:
-                try:
-                    pair = (
-                        default_currency,
-                        account["currency"],
-                    )
-                    rate = currency_basket["rates"][pair]
-                    rev = True
-                except KeyError:
-                    fmt = "no currency pair {}/{} for {} account named {}"
-                    sys.stderr.write(
-                        ("{}: {}: " + fmt + "\n").format(
-                            util.colors.colorise(
-                                "white",
-                                account["~"].text[0].location,
-                            ),
-                            util.colors.colorise(
-                                "red",
-                                "error",
-                            ),
-                            util.colors.colorise(
-                                "white",
-                                account["currency"],
-                            ),
-                            util.colors.colorise(
-                                "white",
-                                default_currency,
-                            ),
-                            t,
-                            util.colors.colorise(
-                                "white",
-                                name,
-                            ),
-                        )
-                    )
-                    exit(1)
-
-            rate = rate.rate
-            if rev:
-                gain_nominal = gain_nominal / rate
-            else:
-                gain_nominal = gain_nominal * rate
-
-        total_gain.append(
-            (
-                gain_nominal,
-                gain_percent,
-            )
-        )
-
-    nominal_gain = sum(map(lambda e: e[0], total_gain))
-    percent_gain = []
-    for nominal, percent in total_gain:
-        if percent == 0:
-            continue  # Avoid a division by zero on empty accounts.
-        r = ((nominal / nominal_gain) * percent) * (percent / abs(percent))
-        percent_gain.append(r)
-    percent_gain = sum(percent_gain)
-
-    gain_sign = "+" if nominal_gain > 0 else ""
-
-    # Display the header. A basic overview of how many equity accounts there
-    # are.
-    fmt = "{} of {} equity account(s): total {} ≈ {} {}, {}{}%"
-    p(
-        fmt.format(
-            util.colors.colorise(
-                util.colors.COLOR_PERIOD_NAME,
-                "State",
-            ),
-            len(eq_accounts.keys()),
-            ("profit" if nominal_gain >= 0 else "loss"),
-            util.colors.colorise_balance(nominal_gain),
-            default_currency,
-            util.colors.colorise_balance(percent_gain, gain_sign),
-            util.colors.colorise_balance(percent_gain),
-        )
-    )
-
-    # Discover the maximal length of a company name (ie, the ticker) and the
-    # maximal length of the shares number. This is used later for to align the
-    # report in a readable way.
-    company_name_length = 0
-    shares_length = 0
-    for account in eq_accounts.values():
-        for name, shares in account["shares"].items():
-            company_name_length = max(company_name_length, len(name))
-            shares_length = max(shares_length, len(str(shares["shares"])))
-
-    # Companies for whom total return is not equal to share price fluctuation
-    # result (eg, because they paid a dividend) have their names prefixed with a
-    # star.
-    #
-    # To make the marker look good it is attached to the company name BEFORE
-    # justification so that it looks like this:
-    #
-    #         * DIVIDEND
-    #        NO-DIVIDEND
-    #
-    # instead of liket this:
-    #
-    #      *    DIVIDEND
-    #        NO-DIVIDEND
-    company_name_length += 2
-
-    shares_length = 0
-    if len(account["shares"].keys()):
-        shares_length = max(
-            map(lambda _: len(str(_["shares"])), account["shares"].values())
-        )
-
-    for name in sorted(eq_accounts.keys()):
-        account = eq_accounts[name]
-        total_value = account["balance"]
-
-        if (not account["shares"]) or (not total_value):
-            continue
-
-        gain = account["gain"]
-        gain_nominal = gain["nominal"]
-        gain_percent = gain["percent"]
-        gain_sign = "+" if gain_percent > 0 else ""
-
-        companies_with_loss = len(
-            list(
-                filter(
-                    lambda x: (x < 0),
-                    map(
-                        lambda x: x["total_return"]["nominal"],
-                        filter(
-                            lambda x: x["shares"],
-                            account["shares"].values(),
-                        ),
-                    ),
-                )
-            )
-        )
-
-        if True:
-            fmt_overview = "  {} => {} {} ({} {}, {}{}%)"
-            m = fmt_overview.format(
-                name,
-                util.colors.colorise_balance(total_value),
-                account["currency"],
-                util.colors.colorise_balance(gain_nominal),
-                account["currency"],
-                util.colors.colorise_balance(gain_nominal, gain_sign),
-                util.colors.colorise_balance(gain_percent),
-            )
+        for name, account in eq_accounts.items():
+            mv = account["v2_market_value"]
+            cb = account["v2_cost_basis"]
+            tr = account["v2_total_return"]
 
             if account["currency"] != default_currency:
-                balance_raw = total_value
                 pair = (
                     account["currency"],
                     default_currency,
@@ -1184,17 +1031,159 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
                 rate = rate.rate
                 if rev:
-                    balance_in_default = balance_raw / rate
+                    mv = mv / rate
+                    cb = cb / rate
+                    tr = tr / rate
                 else:
-                    balance_in_default = balance_raw * rate
+                    mv = mv * rate
+                    cb = cb * rate
+                    tr = tr * rate
 
-                # FIXME display % gain/loss depending on exchange rate
-                fmt = " ≅ {} {} at {} {}/{} rate"
-                m += fmt.format(
+            total_market_value += mv
+            total_cost_basis += cb
+            total_return += tr
+
+        gain_sign = "+" if total_return > 0 else ""
+
+        # Display a basic overview of total market value and return.
+        fmt = "{} of {} equity account(s): ≈{} {}, total {} ≈ {} {}, {}{}%"
+        p(
+            fmt.format(
+                util.colors.colorise(
+                    util.colors.COLOR_PERIOD_NAME,
+                    "State",
+                ),
+                len(eq_accounts.keys()),
+                util.colors.colorise_balance(total_market_value),
+                default_currency,
+                ("profit" if total_return >= 0 else "loss"),
+                util.colors.colorise_balance(total_return),
+                default_currency,
+                util.colors.colorise_balance(total_return, gain_sign),
+                util.colors.colorise_balance(total_return / total_cost_basis * 100),
+            )
+        )
+
+    # Discover the maximal length of a company name (ie, the ticker) and the
+    # maximal length of the shares number. This is used later for to align the
+    # report in a readable way.
+    company_name_length = 0
+    shares_length = 0
+    for account in eq_accounts.values():
+        for name, shares in account["shares"].items():
+            company_name_length = max(company_name_length, len(name))
+            shares_length = max(shares_length, len(str(shares["shares"])))
+
+    # Companies for whom total return is not equal to share price fluctuation
+    # result (eg, because they paid a dividend) have their names prefixed with a
+    # star.
+    #
+    # To make the marker look good it is attached to the company name BEFORE
+    # justification so that it looks like this:
+    #
+    #         * DIVIDEND
+    #        NO-DIVIDEND
+    #
+    # instead of liket this:
+    #
+    #      *    DIVIDEND
+    #        NO-DIVIDEND
+    company_name_length += 2
+
+    shares_length = 0
+    if len(account["shares"].keys()):
+        shares_length = max(
+            map(lambda _: len(str(_["shares"])), account["shares"].values())
+        )
+
+    for name in sorted(eq_accounts.keys()):
+        account = eq_accounts[name]
+
+        if not account["v2_market_value"]:
+            continue
+
+        ac = account["currency"]
+
+        if True:
+            mv = account["v2_market_value"]
+            cb = account["v2_cost_basis"]
+            tr = account["v2_total_return"]
+            tr_sign = ('+' if tr >= 0 else '')
+            title = "  {} => {} {} ({}{} {}, {}{}%)".format(
+                name,
+                util.colors.colorise_balance(mv),
+                ac,
+                util.colors.colorise_balance(tr, ('+' if tr >= 0 else '')),
+                util.colors.colorise_balance(tr),
+                ac,
+                util.colors.colorise_balance(tr, tr_sign),
+                util.colors.colorise_balance(max((tr / (cb or 1) * 100), -100)),
+            )
+
+            if account["currency"] != default_currency:
+                mv_in_default = decimal.Decimal()
+                tr_in_default = decimal.Decimal()
+                pair = (
+                    account["currency"],
+                    default_currency,
+                )
+                rev = False
+                try:
+                    rate = currency_basket["rates"][pair]
+                except KeyError:
+                    try:
+                        pair = (
+                            default_currency,
+                            account["currency"],
+                        )
+                        rate = currency_basket["rates"][pair]
+                        rev = True
+                    except KeyError:
+                        fmt = "no currency pair {}/{} for {} account named {}"
+                        sys.stderr.write(
+                            ("{}: {}: " + fmt + "\n").format(
+                                util.colors.colorise(
+                                    "white",
+                                    account["~"].text[0].location,
+                                ),
+                                util.colors.colorise(
+                                    "red",
+                                    "error",
+                                ),
+                                util.colors.colorise(
+                                    "white",
+                                    account["currency"],
+                                ),
+                                util.colors.colorise(
+                                    "white",
+                                    default_currency,
+                                ),
+                                t,
+                                util.colors.colorise(
+                                    "white",
+                                    name,
+                                ),
+                            )
+                        )
+                        exit(1)
+
+                rate = rate.rate
+                if rev:
+                    mv_in_default = mv / rate
+                    tr_in_default = tr / rate
+                else:
+                    mv_in_default = mv * rate
+                    tr_in_default = tr * rate
+
+                fmt = " ≅ {} {} ({}{} {}) at {} {}/{}"
+                title += fmt.format(
                     util.colors.colorise_balance(
-                        (balance_in_default or 0),
+                        (mv_in_default or 0),
                         "{:7.2f}",
                     ),
+                    default_currency,
+                    util.colors.colorise_balance(tr, ('+' if tr >= 0 else '')),
+                    util.colors.colorise_balance(tr_in_default),
                     default_currency,
                     util.colors.colorise(
                         util.colors.COLOR_EXCHANGE_RATE,
@@ -1204,32 +1193,29 @@ def report_total_equity(to_out, accounts, book, default_currency):
                     default_currency,
                 )
 
-            p(m)
+            p(title)
 
-        fmt = "   {}: {} * {} = {} ({} {}, {}% @ {}{}{} {})"
-        fmt_share_price = "{:8.4f}"
+        fmt_share_price_mkt = "{:8.4f}"
+        fmt_share_price_avg = "{:7.4f}"
         fmt_share_count = "{:3.0f}"
         fmt_share_worth = "{:8.2f}"
-        fmt_gain_nominal = "{:8.2f}"
-        fmt_gain_percent = "{:8.4f}"
-        for company in sorted(account["shares"].keys()):
-            shares = account["shares"][company]
+        fmt_tr_nominal = "{:8.2f}"
+        fmt_tr_percent = "{:8.2f}"
 
-            paid = shares["paid"]
-            no_of_shares = shares["shares"]
+        for company, shares in sorted(account["shares"].items()):
+            stats = account["shares"][company]
 
-            if no_of_shares == 0:
-                # Perhaps all the shares were sold.
+            shares_held = stats["v2_shares_held"]
+            if shares_held == 0:
                 continue
 
-            share_price = shares["price_per_share"]
-            share_price_avg = abs(paid / no_of_shares)
-            worth = share_price * no_of_shares
+            market_value = stats["v2_market_value"]
+            total_return = stats["v2_total_return"]
+            cost_basis = stats["v2_cost_basis"]
 
-            gain_nominal = shares["gain"]["nominal"]
-            gain_percent = shares["gain"]["percent"]
-            gain_sign = "+" if gain_percent >= 0 else ""
-            gain_nominal_per_share = gain_nominal / no_of_shares
+            share_price_mkt = stats["price_per_share"]
+            share_price_avg = cost_basis / shares_held if shares_held else cost_basis
+            share_price_diff = share_price_mkt - share_price_avg
 
             from ledger.util.colors import colorise_if_possible as c
             from ledger.util.colors import colorise_balance as cb
@@ -1238,34 +1224,30 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 COLOR_SHARE_COUNT,
                 COLOR_SHARE_PRICE_AVG,
                 COLOR_SHARE_WORTH,
+                COLOR_BALANCE_NEGATIVE,
             )
 
-            this_fmt = fmt[:]
+            star_spacing = (5 - len(f"{abs(share_price_diff):.2f}"))
+            star_spacing = ' ' * star_spacing
 
-            result_nominal = gain_nominal
-            result_percent = gain_percent
+            dividends = stats["dividends"]
+            dividend_marker = ('* ' if dividends else '')
 
-            tr = shares["total_return"]
-            value_for_color = gain_percent
-            if tr["relevant"]:
-                result_nominal = tr["nominal"]
-                result_percent = tr["percent"]
-                value_for_color = tr["percent"]
-
-            company = f"* {company}" if tr["relevant"] else company
-            p(
-                this_fmt.format(
-                    cb(value_for_color, company.rjust(company_name_length)),
-                    c(COLOR_SHARE_PRICE, fmt_share_price.format(share_price)),
-                    c(COLOR_SHARE_COUNT, fmt_share_count.format(no_of_shares)),
-                    c(COLOR_SHARE_WORTH, fmt_share_worth.format(worth)),
-                    cb(result_nominal, fmt_gain_nominal),
-                    account["currency"],
-                    cb(result_percent, fmt_gain_percent),
-                    c(COLOR_SHARE_PRICE_AVG, "{:6.2f}".format(share_price_avg)),
-                    cb(gain_nominal_per_share, gain_sign),
-                    cb(gain_nominal_per_share, "{:.4f}"),
-                    account["currency"],
-                    repr(gain_sign),
-                )
-            )
+            p("    {}: {} ({}{}{}) {}* {} = {} {} ({}{}{} {}, {}{}%)".format(
+                cb(total_return, (dividend_marker +
+                    company).rjust(company_name_length)),
+                c(COLOR_SHARE_PRICE_AVG, fmt_share_price_mkt.format(share_price_mkt)),
+                c(COLOR_SHARE_PRICE, fmt_share_price_avg.format(share_price_avg)),
+                cb(share_price_diff, ('+' if share_price_diff >= 0 else '')),
+                cb(share_price_diff),
+                star_spacing,
+                c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
+                c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
+                ac,
+                c(COLOR_SHARE_PRICE, cost_basis),
+                cb(total_return, ('+' if total_return >= 0 else '')),
+                cb(total_return),
+                ac,
+                cb(total_return, ('+' if share_price_diff >= 0 else '')),
+                cb(total_return / cost_basis * 100),
+            ))
