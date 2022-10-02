@@ -465,10 +465,10 @@ def report_common_impl(
                 )
             )
 
-        extra_faucets = 1 + (2 if monthly_breakdown else 0)
+        extra_faucets = 1 + (8 if monthly_breakdown else 0)
 
         if is_all_time_report:
-            extra_faucets += 39
+            extra_faucets += 28
 
         fmt = (
             "               {:3d}th: {} {} {} {}"
