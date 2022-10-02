@@ -677,6 +677,9 @@ def report_all_time(to_out, book, default_currency):
             first = each
             break
 
+    if first is None:
+        return
+
     period_end = datetime.datetime.now()
     period_begin = first.effective_date()
     report_period_impl(
@@ -957,6 +960,8 @@ def report_total_balances(to_out, accounts, book, default_currency):
 
 def report_total_equity(to_out, accounts, book, default_currency):
     eq_accounts = accounts["equity"]
+    if not eq_accounts:
+        return
 
     book, currency_basket = book
 
