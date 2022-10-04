@@ -493,7 +493,7 @@ def calculate_equity_values(accounts, book, default_currency):
                 shares_held += tx_shares
 
                 transaction_sign = (tx_shares / abs(tx_shares))
-                v = (transaction_sign * tx_value) - tx_fee
+                v = (transaction_sign * tx_value) + tx_fee
                 if tx_shares < 0 and v > 0:
                     raise Exception(name, company, tx_shares, (tx_value, tx_fee), transaction_sign, v)
                 cost_basis += v
