@@ -1196,7 +1196,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
             p(title)
 
         fmt_share_price_mkt = "{:8.4f}"
-        fmt_share_price_avg = "{:7.4f}"
+        fmt_share_price_avg = "{:8.4f}"
         fmt_share_count = "{:3.0f}"
         fmt_share_worth = "{:8.2f}"
         fmt_tr_nominal = "{:8.2f}"
@@ -1233,7 +1233,9 @@ def report_total_equity(to_out, accounts, book, default_currency):
             dividends = stats["dividends"]
             dividend_marker = ('* ' if dividends else '')
 
-            p("    {}: {} ({}{}{}) {}* {} = {} {} ({}{}{} {}, {}{}%)".format(
+            tr_percentage = total_return / cost_basis * 100
+
+            p("    {}: {} ({}{}{}) {}* {} = {} {} ({}{} {}, {}%)".format(
                 cb(total_return, (dividend_marker +
                     company).rjust(company_name_length)),
                 c(COLOR_SHARE_PRICE_AVG, fmt_share_price_mkt.format(share_price_mkt)),
@@ -1244,10 +1246,8 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
                 c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
                 ac,
-                c(COLOR_SHARE_PRICE, cost_basis),
-                cb(total_return, ('+' if total_return >= 0 else '')),
-                cb(total_return),
+                c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
+                cb(total_return, f"{total_return:+8.2f}"),
                 ac,
-                cb(total_return, ('+' if share_price_diff >= 0 else '')),
-                cb(total_return / cost_basis * 100),
+                cb(tr_percentage, f"{tr_percentage:+7.2f}"),
             ))
