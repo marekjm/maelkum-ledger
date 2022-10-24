@@ -850,7 +850,13 @@ def report_total_balances(to_out, accounts, book, default_currency):
             longest_account_name = max(longest_account_name, len(a))
 
     def sort_main_on_top(accounts):
-        keys = sorted(accounts.keys())
+        keys = sorted(
+            accounts.keys(),
+            key=lambda k: (
+                "non_reserve" in accounts[k]["tags"],
+                k,
+            ),
+        )
         keys = sorted(
             keys,
             key=lambda k: ("main" in accounts[k]["tags"]),
