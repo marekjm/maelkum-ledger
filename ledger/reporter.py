@@ -1114,12 +1114,12 @@ def report_total_equity(to_out, accounts, book, default_currency):
             mv = account["v2_market_value"]
             cb = account["v2_cost_basis"]
             tr = account["v2_total_return"]
-            tr_sign = ('+' if tr >= 0 else '')
+            tr_sign = "+" if tr >= 0 else ""
             title = "  {} => {} {} ({}{} {}, {}{}%)".format(
                 name,
                 util.colors.colorise_balance(mv),
                 ac,
-                util.colors.colorise_balance(tr, ('+' if tr >= 0 else '')),
+                util.colors.colorise_balance(tr, ("+" if tr >= 0 else "")),
                 util.colors.colorise_balance(tr),
                 ac,
                 util.colors.colorise_balance(tr, tr_sign),
@@ -1188,7 +1188,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
                         "{:7.2f}",
                     ),
                     default_currency,
-                    util.colors.colorise_balance(tr, ('+' if tr >= 0 else '')),
+                    util.colors.colorise_balance(tr, ("+" if tr >= 0 else "")),
                     util.colors.colorise_balance(tr_in_default),
                     default_currency,
                     util.colors.colorise(
@@ -1233,27 +1233,34 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 COLOR_BALANCE_NEGATIVE,
             )
 
-            star_spacing = (5 - len(f"{abs(share_price_diff):.2f}"))
-            star_spacing = ' ' * star_spacing
+            star_spacing = 5 - len(f"{abs(share_price_diff):.2f}")
+            star_spacing = " " * star_spacing
 
             dividends = stats["dividends"]
-            dividend_marker = ('* ' if dividends else '')
+            dividend_marker = "* " if dividends else ""
 
             tr_percentage = total_return / cost_basis * 100
 
-            p("    {}: {} ({}{}{}) {}* {} = {} {} ({}{} {}, {}%)".format(
-                cb(total_return, (dividend_marker +
-                    company).rjust(company_name_length)),
-                c(COLOR_SHARE_PRICE_AVG, fmt_share_price_mkt.format(share_price_mkt)),
-                c(COLOR_SHARE_PRICE, fmt_share_price_avg.format(share_price_avg)),
-                cb(share_price_diff, ('+' if share_price_diff >= 0 else '')),
-                cb(share_price_diff),
-                star_spacing,
-                c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
-                c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
-                ac,
-                c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
-                cb(total_return, f"{total_return:+8.2f}"),
-                ac,
-                cb(tr_percentage, f"{tr_percentage:+7.2f}"),
-            ))
+            p(
+                "    {}: {} ({}{}{}) {}* {} = {} {} ({}{} {}, {}%)".format(
+                    cb(
+                        total_return,
+                        (dividend_marker + company).rjust(company_name_length),
+                    ),
+                    c(
+                        COLOR_SHARE_PRICE_AVG,
+                        fmt_share_price_mkt.format(share_price_mkt),
+                    ),
+                    c(COLOR_SHARE_PRICE, fmt_share_price_avg.format(share_price_avg)),
+                    cb(share_price_diff, ("+" if share_price_diff >= 0 else "")),
+                    cb(share_price_diff),
+                    star_spacing,
+                    c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
+                    c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
+                    ac,
+                    c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
+                    cb(total_return, f"{total_return:+8.2f}"),
+                    ac,
+                    cb(tr_percentage, f"{tr_percentage:+7.2f}"),
+                )
+            )
