@@ -472,9 +472,9 @@ def calculate_equity_values(accounts, book, default_currency):
 
     for name, account in eq_accounts.items():
         for company, shares in account["shares"].items():
-            dividends : decimal.Decimal = shares["dividends"]
-            share_price : decimal.Decimal = shares["price_per_share"]
-            shares_held : int = 0
+            dividends: decimal.Decimal = shares["dividends"]
+            share_price: decimal.Decimal = shares["price_per_share"]
+            shares_held: int = 0
 
             # Total amount of money used to acquire the current holding of
             # shares. This value increases when buying shares, and decreases
@@ -492,10 +492,17 @@ def calculate_equity_values(accounts, book, default_currency):
 
                 shares_held += tx_shares
 
-                transaction_sign = (tx_shares / abs(tx_shares))
+                transaction_sign = tx_shares / abs(tx_shares)
                 v = (transaction_sign * tx_value) + tx_fee
                 if tx_shares < 0 and v > 0:
-                    raise Exception(name, company, tx_shares, (tx_value, tx_fee), transaction_sign, v)
+                    raise Exception(
+                        name,
+                        company,
+                        tx_shares,
+                        (tx_value, tx_fee),
+                        transaction_sign,
+                        v,
+                    )
                 cost_basis += v
 
                 fees += tx_fee
