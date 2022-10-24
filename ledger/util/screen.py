@@ -3,14 +3,11 @@ import re
 
 
 class Screen:
-    ANSI_CODE = re.compile("\x1b\[(0|\d+;\d+;\d+)m")
+    ANSI_CODE = re.compile("\x1b\[(?:0|\d+;\d+;\d+)m")
 
     @staticmethod
     def get_tty_width():
-        width = int(os.popen("stty size", "r").read().split()[1])
-        if (width % 2) == 1:
-            width -= 1
-        return width
+        return int(os.popen("stty size", "r").read().split()[1])
 
     @staticmethod
     def strip_ansi(s):
@@ -39,6 +36,42 @@ class Screen:
     def max_line(self):
         return max(self._column_line.values())
 
+    def munchmunch(self, text):
+        parts = []
+        last_plaintext = None
+        i = 0
+        while i < len(text):
+            if (m := self.ANSI_CODE.search(text[i:])) is not None:
+                begin, end = m.span()
+
+                if begin != 0:
+                    parts.append(text[i : i + begin])
+                parts.append(m.group(0))
+
+                i += end
+            else:
+                parts.append(text[i:])
+                break
+
+        allowed_length = self._width // self._columns
+        length = 0
+        munched = []
+        for p in parts:
+            if p and p[0] == "\x1b":
+                munched.append(p)
+                continue
+
+            if length >= allowed_length:
+                continue
+
+            if (length + len(p)) > allowed_length:
+                space_left = allowed_length - length
+                p = p[:space_left]
+
+            munched.append(p)
+            length += len(p)
+        return "".join(munched)
+
     def print(self, column, text, line=None):
         if column >= self._columns:
             raise Exception(
@@ -52,6 +85,9 @@ class Screen:
             raise Exception("FIXME")
         else:
             line = self._column_line[column]
+
+        text = self.munchmunch(text)
+
         self._buffer[line].pop(column)
         self._buffer[line].insert(column, text)
         self._column_line[column] += 1
