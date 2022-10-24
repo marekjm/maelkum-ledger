@@ -5,6 +5,8 @@ import decimal
 import os
 import sys
 
+import colored
+
 import ledger
 
 # USEFUL CHARACTERS
@@ -34,6 +36,8 @@ to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwarg
 
 
 def main(args):
+    colored.set_tty_aware(False)
+
     to_stdout(
         "Maelkum's ledger {} ({})".format(
             ledger.__version__,
