@@ -651,6 +651,39 @@ def report_last_month(to_out, book, default_currency):
     )
 
 
+def report_month(
+    to_out, title, year_and_month, book, default_currency, sinks=None, faucets=None
+):
+    year, month = year_and_month
+
+    period_begin = datetime.datetime.strptime(
+        f"{year}-{month}-01T00:00",
+        constants.THIS_MONTH_FORMAT,
+    )
+
+    period_end = None
+    if month == 12:
+        period_end = f"{year + 1}-01-01T00:00"
+    else:
+        period_end = f"{year}-{month + 1}-01T00:00"
+    period_end = datetime.datetime.strptime(
+        period_end, constants.THIS_MONTH_FORMAT
+    ) - datetime.timedelta(seconds=1)
+
+    report_period_impl(
+        to_out,
+        (
+            period_begin,
+            period_end,
+        ),
+        title,
+        book,
+        default_currency,
+        sinks=sinks,
+        faucets=faucets,
+    )
+
+
 def report_this_year(to_out, book, default_currency):
     period_end = datetime.datetime.now()
     period_begin = datetime.datetime.strptime(
@@ -691,6 +724,39 @@ def report_last_year(to_out, book, default_currency):
         book,
         default_currency,
         monthly_breakdown=True,
+    )
+
+
+def report_year(to_out, title, year, book, default_currency, sinks=None, faucets=None):
+    period_begin = datetime.datetime.strptime(
+        f"{year}-01-01T00:00",
+        constants.TIMESTAMP_FORMAT,
+    )
+    period_end = datetime.datetime.strptime(
+        f"{year}-12-31T23:59",
+        constants.TIMESTAMP_FORMAT,
+    )
+
+    # Do not analyse the future.
+    now = datetime.datetime.now()
+    if now < period_end:
+        period_end = datetime.datetime.strptime(
+            now.strftime("%Y-%m-%dT23:59"),
+            constants.TIMESTAMP_FORMAT,
+        )
+
+    report_period_impl(
+        to_out,
+        (
+            period_begin,
+            period_end,
+        ),
+        title,
+        book,
+        default_currency,
+        monthly_breakdown=True,
+        sinks=sinks,
+        faucets=faucets,
     )
 
 

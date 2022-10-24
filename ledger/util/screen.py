@@ -10,6 +10,12 @@ class Screen:
         return int(os.popen("stty size", "r").read().split()[1])
 
     @staticmethod
+    def get_tty_height():
+        if (h := os.environ.get("MAELKUM_LEDGER_TTY_HEIGHT")) is not None:
+            return int(h)
+        return int(os.popen("stty size", "r").read().split()[0])
+
+    @staticmethod
     def strip_ansi(s):
         return Screen.ANSI_CODE.sub("", s)
 
@@ -94,9 +100,11 @@ class Screen:
         if len(self._buffer) <= self.max_line():
             self.new_line()
 
-    def fill(self):
+    def fill(self, up_to_column=None):
         n = self.max_line()
         for each in self._column_line:
+            if up_to_column is not None and each > up_to_column:
+                break
             self._column_line[each] = n
 
     def empty_line(self):
