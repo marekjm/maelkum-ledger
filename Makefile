@@ -16,3 +16,6 @@ install:
 
 watch-install:
 	find . -name '*.py' | entr -c make install
+
+format:
+	@black ui.py ledger
