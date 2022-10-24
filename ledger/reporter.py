@@ -38,7 +38,14 @@ def get_txs_of_period(period_span, txs):
 
 
 def report_common_impl(
-    to_out, txs, book, default_currency, totals=False, monthly_breakdown=None
+    to_out,
+    txs,
+    book,
+    default_currency,
+    totals=False,
+    monthly_breakdown=None,
+    sinks=None,
+    faucets=None,
 ):
     book, currency_basket = book
 
@@ -373,7 +380,7 @@ def report_common_impl(
 
         if sink_1st is not None:
             p(
-                "  Expense sink   1st: {} {} {} {}".format(
+                "  Sink   1st: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_1st[1]))),
                     default_currency,
                     cp((sink_1st[1] / total_expenses) * 100),
@@ -382,7 +389,7 @@ def report_common_impl(
             )
         if sink_2nd is not None:
             p(
-                "                 2nd: {} {} {} {}".format(
+                "         2nd: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_2nd[1]))),
                     default_currency,
                     cp((sink_2nd[1] / total_expenses) * 100),
@@ -391,7 +398,7 @@ def report_common_impl(
             )
         if sink_3rd is not None:
             p(
-                "                 3rd: {} {} {} {}".format(
+                "         3rd: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_3rd[1]))),
                     default_currency,
                     cp((sink_3rd[1] / total_expenses) * 100),
@@ -402,12 +409,15 @@ def report_common_impl(
         extra_sinks = 1 + (2 if monthly_breakdown else 0)
 
         if is_all_time_report:
-            extra_sinks += 34
+            extra_sinks += 36
+
+        if sinks is not None:
+            extra_sinks = max(0, sinks - 3)
 
         fmt = (
-            "               {:3d}th: {} {} {} {}"
-            if monthly_breakdown
-            else "                 {:1d}th: {} {} {} {}"
+            "       {:3d}th: {} {} {} {} {}"
+            if (extra_sinks >= 7)
+            else "         {:1d}th: {} {} {} {} {}"
         )
         for n in range(3, 3 + extra_sinks):
             if n >= len(expense_sinks_sorted):
@@ -441,7 +451,7 @@ def report_common_impl(
 
         if faucet_1st is not None:
             p(
-                "  Revenue faucet 1st: {} {} {} {}".format(
+                "  Faucet 1st: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_1st[1]))),
                     default_currency,
                     cp((faucet_1st[1] / total_revenues) * 100),
@@ -450,7 +460,7 @@ def report_common_impl(
             )
         if faucet_2nd is not None:
             p(
-                "                 2nd: {} {} {} {}".format(
+                "         2nd: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_2nd[1]))),
                     default_currency,
                     cp((faucet_2nd[1] / total_revenues) * 100),
@@ -459,7 +469,7 @@ def report_common_impl(
             )
         if faucet_3rd is not None:
             p(
-                "                 3rd: {} {} {} {}".format(
+                "         3rd: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_3rd[1]))),
                     default_currency,
                     cp((faucet_3rd[1] / total_revenues) * 100),
@@ -470,12 +480,15 @@ def report_common_impl(
         extra_faucets = 1 + (8 if monthly_breakdown else 0)
 
         if is_all_time_report:
-            extra_faucets += 28
+            extra_faucets += 30
+
+        if faucets is not None:
+            extra_faucets = max(0, faucets - 3)
 
         fmt = (
-            "               {:3d}th: {} {} {} {}"
-            if monthly_breakdown
-            else "                 {:1d}th: {} {} {} {}"
+            "       {:3d}th: {} {} {} {}"
+            if (extra_faucets >= 7)
+            else "         {:1d}th: {} {} {} {}"
         )
         for n in range(3, 3 + extra_faucets):
             if n >= len(revenue_faucets_sorted):
@@ -527,7 +540,14 @@ def report_day_impl(to_out, period_day, period_name, book, default_currency):
 
 
 def report_period_impl(
-    to_out, period_span, period_name, book, default_currency, monthly_breakdown=None
+    to_out,
+    period_span,
+    period_name,
+    book,
+    default_currency,
+    monthly_breakdown=None,
+    sinks=None,
+    faucets=None,
 ):
     def p(s=""):
         screen, column = to_out
@@ -564,6 +584,8 @@ def report_period_impl(
         default_currency=default_currency,
         totals=True,
         monthly_breakdown=monthly_breakdown,
+        sinks=sinks,
+        faucets=faucets,
     )
 
 
