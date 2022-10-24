@@ -1,4 +1,4 @@
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __commit__ = "HEAD"
 
 import ledger.constants

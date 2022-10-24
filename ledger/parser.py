@@ -478,6 +478,8 @@ def parse_transfer_record(lines):
         )
 
     is_equity_tx = False
+    fee_value, fee_currency = None, None
+    tx_intermediary = None
     tags = []
     if str(lines[i]) == "with":
         source.append(lines[i])  # for the `with` line
@@ -486,8 +488,16 @@ def parse_transfer_record(lines):
         while str(lines[i]) != "end":
             source.append(lines[i])
             tags.append(source[-1])
-            if str(tags[-1]).strip().startswith("shares:"):
+
+            tt = str(tags[-1]).strip()
+            if tt.startswith("shares:"):
                 is_equity_tx = True
+            if tt.startswith("fee:"):
+                tk, tv = tt.split(":", 1)
+                fee_value, fee_currency = tv.strip().split()
+            if tt.startswith("intermediary:"):
+                tk, tv = tt.split(":", 1)
+                tx_intermediary = tv.strip()
             i += 1
 
     # FIXME Equity transactions may include fees, so can be unbalanced. This
@@ -522,13 +532,67 @@ def parse_transfer_record(lines):
         else:
             ins.append(each)
 
-    return len(source), (ir.Equity_tx if is_equity_tx else ir.Transfer_tx)(
+    base = (ir.Equity_tx if is_equity_tx else ir.Transfer_tx)(
         source,
         timestamp,
         ins,
         outs,
         tags,
     )
+    fee = None
+    if fee_value:
+        if tx_intermediary is None:
+            fmt = "transfer fee without intermediary: `{} {}'"
+            sys.stderr.write(
+                ("{}: {}: " + fmt + "\n").format(
+                    util.colors.colorise(
+                        "white",
+                        source[0].location,
+                    ),
+                    util.colors.colorise(
+                        "red",
+                        "error",
+                    ),
+                    util.colors.colorise(
+                        "white",
+                        str(fee_value),
+                    ),
+                    util.colors.colorise(
+                        "white",
+                        str(fee_currency),
+                    ),
+                )
+            )
+            exit(1)
+        fee = ir.Expense_tx(
+            source,
+            timestamp,
+            [
+                ir.Account_mod(
+                    source[-1],
+                    timestamp,
+                    ins[0].account,
+                    (
+                        decimal.Decimal(fee_value),
+                        fee_currency,
+                    ),
+                )
+            ],
+            [
+                ir.Account_mod(
+                    source[-1],
+                    timestamp,
+                    (None, tx_intermediary),
+                    (
+                        -decimal.Decimal(fee_value),
+                        fee_currency,
+                    ),
+                )
+            ],
+            tags,
+        )
+
+    return len(source), base, fee
 
 
 def parse_dividend_record(lines):
@@ -644,7 +708,9 @@ def parse(lines):
         elif parts[0] == "rx":
             n, item = parse_revenue_record(lines[i:])
         elif parts[0] == "tx":
-            n, item = parse_transfer_record(lines[i:])
+            n, item, fee = parse_transfer_record(lines[i:])
+            if fee is not None:
+                items.append(fee)
         elif parts[0] == "dividend":
             n, item, rx = parse_dividend_record(lines[i:])
             items.append(rx)
