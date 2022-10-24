@@ -2,6 +2,8 @@ import datetime
 import decimal
 import sys
 
+import colored
+
 from . import constants
 from . import ir
 from . import util
@@ -50,6 +52,8 @@ def report_common_impl(
     book, currency_basket = book
 
     expenses, revenues = txs
+
+    COLUMN_WIDTH = to_out[0]._width // to_out[0]._columns
 
     def p(s=""):
         screen, column = to_out
@@ -378,31 +382,70 @@ def report_common_impl(
         cv = lambda s: util.colors.colorise(util.colors.COLOR_EXPENSES, s)
         cp = lambda s: util.colors.colorise("white", f"{s:5.2f}%")
 
+        LABEL_BG = "dark_red_1"
+        # LABEL_FG = "grey_62" # default fg colour
+        LABEL_FG = "grey_78"
+        LABEL_WIDTH = COLUMN_WIDTH - 32 - 2
+        deepest_sink = (sink_1st[1] / total_expenses) if sink_1st is not None else None
+
         if sink_1st is not None:
             p(
                 "  Sink   1st: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_1st[1]))),
                     default_currency,
                     cp((sink_1st[1] / total_expenses) * 100),
-                    sink_1st[0],
+                    (
+                        colored.bg(LABEL_BG)
+                        + colored.fg(LABEL_FG)
+                        + sink_1st[0].ljust(LABEL_WIDTH)
+                        + colored.attr("reset")
+                    ),
                 )
             )
         if sink_2nd is not None:
+            ratio = sink_2nd[1] / total_expenses
+
+            label_bg = int(LABEL_WIDTH * (ratio / deepest_sink))
+            label = sink_2nd[0].ljust(LABEL_WIDTH)
+            if label_bg:
+                with_bg = label[:label_bg]
+                plain = label[label_bg:]
+                label = (
+                    colored.bg(LABEL_BG)
+                    + colored.fg(LABEL_FG)
+                    + with_bg
+                    + colored.attr("reset")
+                ) + plain
+
             p(
                 "         2nd: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_2nd[1]))),
                     default_currency,
-                    cp((sink_2nd[1] / total_expenses) * 100),
-                    sink_2nd[0],
+                    cp(ratio * 100),
+                    label,
                 )
             )
         if sink_3rd is not None:
+            ratio = sink_3rd[1] / total_expenses
+
+            label_bg = int(LABEL_WIDTH * (ratio / deepest_sink))
+            label = sink_3rd[0].ljust(LABEL_WIDTH)
+            if label_bg:
+                with_bg = label[:label_bg]
+                plain = label[label_bg:]
+                label = (
+                    colored.bg(LABEL_BG)
+                    + colored.fg(LABEL_FG)
+                    + with_bg
+                    + colored.attr("reset")
+                ) + plain
+
             p(
                 "         3rd: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_3rd[1]))),
                     default_currency,
-                    cp((sink_3rd[1] / total_expenses) * 100),
-                    sink_3rd[0],
+                    cp(ratio * 100),
+                    label,
                 )
             )
 
@@ -424,13 +467,29 @@ def report_common_impl(
                 break
 
             sink_nth = expense_sinks_sorted[n]
+
+            ratio = sink_nth[1] / total_expenses
+
+            label_bg = int(LABEL_WIDTH * (ratio / deepest_sink))
+            label = sink_nth[0].ljust(LABEL_WIDTH)
+            if label_bg:
+                with_bg = label[:label_bg]
+                plain = label[label_bg:]
+                label = (
+                    colored.bg(LABEL_BG)
+                    + colored.fg(LABEL_FG)
+                    + with_bg
+                    + colored.attr("reset")
+                ) + plain
+
             p(
                 fmt.format(
                     (n + 1),
                     cv(fmt_value(abs(sink_nth[1]))),
                     default_currency,
-                    cp((sink_nth[1] / total_expenses) * 100),
-                    sink_nth[0],
+                    cp(ratio * 100),
+                    label,
+                    label_bg,
                 )
             )
 
@@ -449,31 +508,70 @@ def report_common_impl(
         cv = lambda s: util.colors.colorise(util.colors.COLOR_REVENUES, s)
         cp = lambda s: util.colors.colorise("white", f"{s:5.2f}%")
 
+        LABEL_BG = "dark_green"
+        LABEL_FG = "grey_82"
+        LABEL_WIDTH = COLUMN_WIDTH - 32 - 2
+        VISIBILITY_MULTIPLIER = 5
+        deepest_faucet = (faucet_1st[1] / total_expenses) if faucet_1st is not None else None
+
         if faucet_1st is not None:
             p(
                 "  Faucet 1st: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_1st[1]))),
                     default_currency,
                     cp((faucet_1st[1] / total_revenues) * 100),
-                    faucet_1st[0],
+                    (
+                        colored.bg(LABEL_BG)
+                        + colored.fg(LABEL_FG)
+                        + faucet_1st[0].ljust(LABEL_WIDTH)
+                        + colored.attr("reset")
+                    ),
                 )
             )
         if faucet_2nd is not None:
+            ratio = faucet_2nd[1] / total_expenses
+
+            label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
+            label = faucet_2nd[0].ljust(LABEL_WIDTH)
+            if label_bg:
+                with_bg = label[:label_bg]
+                plain = label[label_bg:]
+                label = (
+                    colored.bg(LABEL_BG)
+                    + colored.fg(LABEL_FG)
+                    + with_bg
+                    + colored.attr("reset")
+                ) + plain
+
             p(
                 "         2nd: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_2nd[1]))),
                     default_currency,
                     cp((faucet_2nd[1] / total_revenues) * 100),
-                    faucet_2nd[0],
+                    label,
                 )
             )
         if faucet_3rd is not None:
+            ratio = faucet_3rd[1] / total_expenses
+
+            label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
+            label = faucet_3rd[0].ljust(LABEL_WIDTH)
+            if label_bg:
+                with_bg = label[:label_bg]
+                plain = label[label_bg:]
+                label = (
+                    colored.bg(LABEL_BG)
+                    + colored.fg(LABEL_FG)
+                    + with_bg
+                    + colored.attr("reset")
+                ) + plain
+
             p(
                 "         3rd: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_3rd[1]))),
                     default_currency,
                     cp((faucet_3rd[1] / total_revenues) * 100),
-                    faucet_3rd[0],
+                    label,
                 )
             )
 
@@ -495,13 +593,28 @@ def report_common_impl(
                 break
 
             faucet_nth = revenue_faucets_sorted[n]
+
+            ratio = faucet_nth[1] / total_expenses
+
+            label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
+            label = faucet_nth[0].ljust(LABEL_WIDTH)
+            if label_bg:
+                with_bg = label[:label_bg]
+                plain = label[label_bg:]
+                label = (
+                    colored.bg(LABEL_BG)
+                    + colored.fg(LABEL_FG)
+                    + with_bg
+                    + colored.attr("reset")
+                ) + plain
+
             p(
                 fmt.format(
                     (n + 1),
                     cv(fmt_value(abs(faucet_nth[1]))),
                     default_currency,
                     cp((faucet_nth[1] / total_revenues) * 100),
-                    faucet_nth[0],
+                    label,
                 )
             )
 
