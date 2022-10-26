@@ -135,26 +135,6 @@ def report_common_impl(
             expense_sinks[sink] += ins_sum
         expense_values.append(ins_sum)
         total_expenses += ins_sum
-    fmt = "  Expenses:   {} {}".format(
-        util.colors.colorise(
-            util.colors.COLOR_BALANCE_NEGATIVE,
-            "{:8.2f}".format(abs(total_expenses)),
-        ),
-        default_currency,
-    )
-    if monthly_breakdown is not None:
-        fmt += "  (p/m: {} {})".format(
-            util.colors.colorise(
-                util.colors.COLOR_BALANCE_NEGATIVE,
-                "{:7.2f}".format(abs(total_expenses) / (monthly_breakdown or 1)),
-            ),
-            default_currency,
-        )
-    p(fmt)
-
-    if not revenues:
-        p()
-        return
 
     revenue_faucets = {}
     revenue_values = []
@@ -230,10 +210,100 @@ def report_common_impl(
         revenue_values.append(rev_sum)
         total_revenues += rev_sum
 
+    # Report net flows from sinks and faucets.
+    #
+    # The same entity can be both an expense sink and a revenue faucet. For
+    # example, you can get rent from an apartment but it also costs money to
+    # renovate and keep up to standard. Anyway, the code below is responsible
+    # for adjusting raw data on the sinks and faucets so that they represent the
+    # net cash flows.
+    #
+    # For personal finance this is a better idea than presenting the same entity
+    # as both faucet and sink for money. It is the net flow that matters the
+    # most at the level of an individual person, I think.
+    faucets_and_sinks = set()
+    faucets_and_sinks.update(expense_sinks.keys())
+    faucets_and_sinks.update(revenue_faucets.keys())
+    for each in faucets_and_sinks:
+        sink = expense_sinks.get(each)
+        faucet = revenue_faucets.get(each)
+        if (sink is None) or (faucet is None):
+            continue
+
+        net = sink + faucet
+
+        if abs(net) < decimal.Decimal("0.01"):
+            # If the net is 0 then the entity does not really influence the
+            # outcome. We can derive $$$ of revenue from it, but if it is also a
+            # sink for $$$ then we could ditch interaction with the entity and
+            # the net cash flow would be unaffected.
+            del expense_sinks[each]
+            del revenue_faucets[each]
+            continue
+
+        # Otherwise, the entity is either a net sink, or a net faucet.
+        if net < 0:
+            expense_sinks[each] = net
+            del revenue_faucets[each]
+        else:
+            revenue_faucets[each] = net
+            del expense_sinks[each]
+
+    net_expenses = sum(expense_sinks.values())
+    net_revenues = sum(revenue_faucets.values())
+
+    # Base values for expenses and revenues can be either the total (ie, every
+    # expense incurred and revenue earned during the analysed period) or the net
+    # value. The net value is calculated by summing expenses and revenues and
+    # only considering the final outcome.
+    #
+    # Sinks are ALREADY net so reporting precentages makes more sense based on
+    # the net value.
+    #
+    # Keep in mind that this distinction (total vs net) is only meaningful and
+    # affects calculations for entities that are both expense sinks and revenue
+    # faucets. To give a couple of more concrete examples:
+    #
+    #  1/ Assume that you are renting a flat. Each month you must pay the
+    #     landlord a certain amount of cash. The landlord is a pure expense sink
+    #     and WILL NOT be affected by the net/total distintion.
+    #  2/ You go to work and receive a paycheck every month. The employer is a
+    #     pure revenue faucet.
+    #  3/ You and your mother have a birthday the same month, and you both gift
+    #     each other $100. In this case the mother is BOTH an expense sink (as
+    #     you have given her $100) and a revenue faucet (she has given you $100).
+    #     The total cash flow is +$100 and -$100, but the net flow is $0.
+    #     Because there is a sink and a faucet for your mother, she WILL be
+    #     affected by the net/total distintion.
+    BASE_NET = True
+    base_expenses = (net_expenses if BASE_NET else total_expenses)
+    base_revenues = (net_revenues if BASE_NET else total_revenues)
+
+    fmt = "  Expenses:   {} {}".format(
+        util.colors.colorise(
+            util.colors.COLOR_BALANCE_NEGATIVE,
+            "{:8.2f}".format(abs(base_expenses)),
+        ),
+        default_currency,
+    )
+    if monthly_breakdown is not None:
+        fmt += "  (p/m: {} {})".format(
+            util.colors.colorise(
+                util.colors.COLOR_BALANCE_NEGATIVE,
+                "{:7.2f}".format(abs(base_expenses) / (monthly_breakdown or 1)),
+            ),
+            default_currency,
+        )
+    p(fmt)
+
+    if not revenues:
+        p()
+        return
+
     fmt = "  Revenues:   {} {}".format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_POSITIVE,
-            "{:8.2f}".format(abs(total_revenues)),
+            "{:8.2f}".format(abs(net_revenues)),
         ),
         default_currency,
     )
@@ -241,13 +311,13 @@ def report_common_impl(
         fmt += "  (p/m: {} {})".format(
             util.colors.colorise(
                 util.colors.COLOR_BALANCE_POSITIVE,
-                "{:7.2f}".format(abs(total_revenues) / (monthly_breakdown or 1)),
+                "{:7.2f}".format(abs(base_revenues) / (monthly_breakdown or 1)),
             ),
             default_currency,
         )
     p(fmt)
 
-    net = total_revenues + total_expenses
+    net = base_revenues + base_expenses
     fmt = "  Net {} {} {}"
     if net <= 0:
         fmt = fmt.format(
@@ -280,7 +350,7 @@ def report_common_impl(
 
     p("    ----")
 
-    er = abs(total_expenses) / total_revenues * 100
+    er = abs(base_expenses) / base_revenues * 100
     p(
         "  Expenses are {}% of revenues.".format(
             util.colors.colorise(
@@ -321,45 +391,6 @@ def report_common_impl(
         - min(revenues[0].timestamp, revenues[0].timestamp)
     ).days > 366
 
-    # Report net flows from sinks and faucets.
-    #
-    # The same entity can be both an expense sink and a revenue faucet. For
-    # example, you can get rent from an apartment but it also costs money to
-    # renovate and keep up to standard. Anyway, the code below is responsible
-    # for adjusting raw data on the sinks and faucets so that they represent the
-    # net cash flows.
-    #
-    # For personal finance this is a better idea than presenting the same entity
-    # as both faucet and sink for money. It is the net flow that matters the
-    # most at the level of an individual person, I think.
-    faucets_and_sinks = set()
-    faucets_and_sinks.update(expense_sinks.keys())
-    faucets_and_sinks.update(revenue_faucets.keys())
-    for each in faucets_and_sinks:
-        sink = expense_sinks.get(each)
-        faucet = revenue_faucets.get(each)
-        if (sink is None) or (faucet is None):
-            continue
-
-        net = sink + faucet
-
-        if abs(net) < decimal.Decimal("0.01"):
-            # If the net is 0 then the entity does not really influence the
-            # outcome. We can derive $$$ of revenue from it, but if it is also a
-            # sink for $$$ then we could ditch interaction with the entity and
-            # the net cash flow would be unaffected.
-            del expense_sinks[each]
-            del revenue_faucets[each]
-            continue
-
-        # Otherwise, the entity is either a net sink, or a net faucet.
-        if net < 0:
-            expense_sinks[each] = net
-            del revenue_faucets[each]
-        else:
-            revenue_faucets[each] = net
-            del expense_sinks[each]
-
     expense_sinks_sorted = sorted(expense_sinks.items(), key=lambda each: each[1])
     revenue_faucets_sorted = sorted(
         revenue_faucets.items(), key=lambda each: each[1], reverse=True
@@ -386,14 +417,14 @@ def report_common_impl(
         # LABEL_FG = "grey_62" # default fg colour
         LABEL_FG = "grey_78"
         LABEL_WIDTH = COLUMN_WIDTH - 32 - 2
-        deepest_sink = (sink_1st[1] / total_expenses) if sink_1st is not None else None
+        deepest_sink = (sink_1st[1] / base_expenses) if sink_1st is not None else None
 
         if sink_1st is not None:
             p(
                 "  Sink   1st: {} {} {} {}".format(
                     cv(fmt_value(abs(sink_1st[1]))),
                     default_currency,
-                    cp((sink_1st[1] / total_expenses) * 100),
+                    cp((sink_1st[1] / base_expenses) * 100),
                     (
                         colored.bg(LABEL_BG)
                         + colored.fg(LABEL_FG)
@@ -403,7 +434,7 @@ def report_common_impl(
                 )
             )
         if sink_2nd is not None:
-            ratio = sink_2nd[1] / total_expenses
+            ratio = sink_2nd[1] / base_expenses
 
             label_bg = int(LABEL_WIDTH * (ratio / deepest_sink))
             label = sink_2nd[0].ljust(LABEL_WIDTH)
@@ -426,7 +457,7 @@ def report_common_impl(
                 )
             )
         if sink_3rd is not None:
-            ratio = sink_3rd[1] / total_expenses
+            ratio = sink_3rd[1] / base_expenses
 
             label_bg = int(LABEL_WIDTH * (ratio / deepest_sink))
             label = sink_3rd[0].ljust(LABEL_WIDTH)
@@ -468,7 +499,7 @@ def report_common_impl(
 
             sink_nth = expense_sinks_sorted[n]
 
-            ratio = sink_nth[1] / total_expenses
+            ratio = sink_nth[1] / base_expenses
 
             label_bg = int(LABEL_WIDTH * (ratio / deepest_sink))
             label = sink_nth[0].ljust(LABEL_WIDTH)
@@ -512,14 +543,14 @@ def report_common_impl(
         LABEL_FG = "grey_82"
         LABEL_WIDTH = COLUMN_WIDTH - 32 - 2
         VISIBILITY_MULTIPLIER = 5
-        deepest_faucet = (faucet_1st[1] / total_expenses) if faucet_1st is not None else None
+        deepest_faucet = (faucet_1st[1] / base_revenues) if faucet_1st is not None else None
 
         if faucet_1st is not None:
             p(
                 "  Faucet 1st: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_1st[1]))),
                     default_currency,
-                    cp((faucet_1st[1] / total_revenues) * 100),
+                    cp((faucet_1st[1] / base_revenues) * 100),
                     (
                         colored.bg(LABEL_BG)
                         + colored.fg(LABEL_FG)
@@ -529,7 +560,7 @@ def report_common_impl(
                 )
             )
         if faucet_2nd is not None:
-            ratio = faucet_2nd[1] / total_expenses
+            ratio = faucet_2nd[1] / base_revenues
 
             label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
             label = faucet_2nd[0].ljust(LABEL_WIDTH)
@@ -547,12 +578,12 @@ def report_common_impl(
                 "         2nd: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_2nd[1]))),
                     default_currency,
-                    cp((faucet_2nd[1] / total_revenues) * 100),
+                    cp(ratio * 100),
                     label,
                 )
             )
         if faucet_3rd is not None:
-            ratio = faucet_3rd[1] / total_expenses
+            ratio = faucet_3rd[1] / base_revenues
 
             label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
             label = faucet_3rd[0].ljust(LABEL_WIDTH)
@@ -570,7 +601,7 @@ def report_common_impl(
                 "         3rd: {} {} {} {}".format(
                     cv(fmt_value(abs(faucet_3rd[1]))),
                     default_currency,
-                    cp((faucet_3rd[1] / total_revenues) * 100),
+                    cp(ratio * 100),
                     label,
                 )
             )
@@ -594,7 +625,7 @@ def report_common_impl(
 
             faucet_nth = revenue_faucets_sorted[n]
 
-            ratio = faucet_nth[1] / total_expenses
+            ratio = faucet_nth[1] / base_revenues
 
             label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
             label = faucet_nth[0].ljust(LABEL_WIDTH)
@@ -613,7 +644,7 @@ def report_common_impl(
                     (n + 1),
                     cv(fmt_value(abs(faucet_nth[1]))),
                     default_currency,
-                    cp((faucet_nth[1] / total_revenues) * 100),
+                    cp(ratio * 100),
                     label,
                 )
             )
