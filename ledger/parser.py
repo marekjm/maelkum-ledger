@@ -564,6 +564,8 @@ def parse_transfer_record(lines):
                 )
             )
             exit(1)
+        # FIXME Reduce the outs amount by the fee to prevent double reduction of
+        # the account's balance.
         fee = ir.Expense_tx(
             source,
             timestamp,
