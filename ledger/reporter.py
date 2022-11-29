@@ -1212,11 +1212,10 @@ def report_total_equity(to_out, accounts, book, default_currency):
         else:
             to_stdout(s)
 
+    total_market_value = decimal.Decimal()
+    total_cost_basis = decimal.Decimal()
+    total_return = decimal.Decimal()
     if True:
-        total_market_value = decimal.Decimal()
-        total_cost_basis = decimal.Decimal()
-        total_return = decimal.Decimal()
-
         for name, account in eq_accounts.items():
             mv = account["v2_market_value"]
             cb = account["v2_cost_basis"]
@@ -1333,6 +1332,27 @@ def report_total_equity(to_out, accounts, book, default_currency):
         shares_length = max(
             map(lambda _: len(str(_["shares"])), account["shares"].values())
         )
+
+    ALT_BG = "grey_11"
+
+    p("   {}   {:7}   {:7}        Share    {:7}         {}    Total return".format(
+        (" " * company_name_length),
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Market".ljust(8)),
+        "Average",
+        "Market",
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Cost".ljust(7)),
+    ))
+    p("   {}   {:7}   {:7}        Count    {:7}  Port%  {}     TR$    TR% ".format(
+        (" " * company_name_length),
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Price".ljust(8)),
+        " Price",
+        "Value",
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Basis".ljust(7)),
+    ))
 
     for name in sorted(eq_accounts.keys()):
         account = eq_accounts[name]
@@ -1473,13 +1493,70 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
             tr_percentage = total_return / cost_basis * 100
 
+            percent_of_portfolio_value = decimal.Decimal()
+            if share_price_mkt:
+                mv = market_value
+
+                if account["currency"] != default_currency:
+                    pair = (
+                        account["currency"],
+                        default_currency,
+                    )
+                    rev = False
+                    try:
+                        rate = currency_basket["rates"][pair]
+                    except KeyError:
+                        try:
+                            pair = (
+                                default_currency,
+                                account["currency"],
+                            )
+                            rate = currency_basket["rates"][pair]
+                            rev = True
+                        except KeyError:
+                            fmt = "no currency pair {}/{} for {} account named {}"
+                            sys.stderr.write(
+                                ("{}: {}: " + fmt + "\n").format(
+                                    util.colors.colorise(
+                                        "white",
+                                        account["~"].text[0].location,
+                                    ),
+                                    util.colors.colorise(
+                                        "red",
+                                        "error",
+                                    ),
+                                    util.colors.colorise(
+                                        "white",
+                                        account["currency"],
+                                    ),
+                                    util.colors.colorise(
+                                        "white",
+                                        default_currency,
+                                    ),
+                                    t,
+                                    util.colors.colorise(
+                                        "white",
+                                        name,
+                                    ),
+                                )
+                            )
+                            exit(1)
+
+                    rate = rate.rate
+                    if rev:
+                        mv = mv / rate
+                    else:
+                        mv = mv * rate
+
+                percent_of_portfolio_value = (mv / total_market_value) * 100
+
             p(
-                "    {}: {} ({}{}{}) {}* {} = {} {} ({}{} {}, {}%)".format(
+                "    {}: {} ({}{}{}) {}* {} = {} ({}%) {}{} {}%".format(
                     cb(
                         total_return,
                         (dividend_marker + company).rjust(company_name_length),
                     ),
-                    c(
+                    colored.bg(ALT_BG) + c(
                         COLOR_SHARE_PRICE_AVG,
                         fmt_share_price_mkt.format(share_price_mkt),
                     ),
@@ -1489,10 +1566,28 @@ def report_total_equity(to_out, accounts, book, default_currency):
                     star_spacing,
                     c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
                     c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
-                    ac,
-                    c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
+                    c(COLOR_SHARE_WORTH, f"{percent_of_portfolio_value:4.2f}"),
+                    colored.bg(ALT_BG) + c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
                     cb(total_return, f"{total_return:+8.2f}"),
-                    ac,
                     cb(tr_percentage, f"{tr_percentage:+7.2f}"),
                 )
             )
+
+    p("   {}   {:7}   {:7}        Share    {:7}  Port%  {}    Total return".format(
+        (" " * company_name_length),
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Market".ljust(8)),
+        "Average",
+        "Market",
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Cost".ljust(7)),
+    ))
+    p("   {}   {:7}   {:7}        Count    {:7}         {}     TR$    TR% ".format(
+        (" " * company_name_length),
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Price".ljust(8)),
+        " Price",
+        "Value",
+        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
+                                                  " Basis".ljust(7)),
+    ))
