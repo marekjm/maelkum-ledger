@@ -404,6 +404,11 @@ def report_common_impl(
     sink_faucet_value_len = len("{:.2f}".format(abs(sink_faucet_value_len)))
     fmt_value = lambda value: ("{{:{}.2f}}".format(sink_faucet_value_len).format(value))
 
+    if sinks is not None and faucets is not None:
+        if len(revenue_faucets_sorted) < faucets:
+            space_left = (faucets - len(revenue_faucets_sorted))
+            sinks += space_left
+
     # Expense sink statistics.
     if expense_sinks_sorted:
         sink_1st = expense_sinks_sorted[0] if len(expense_sinks_sorted) > 0 else None
@@ -1335,7 +1340,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
     ALT_BG = "grey_11"
 
-    p("   {}   {:7}   {:7}        Share    {:7}         {}    Total return".format(
+    p("   {}   {:7}   {:7}        Share    {:7}          {}    Total return".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Market".ljust(8)),
@@ -1344,7 +1349,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Cost".ljust(7)),
     ))
-    p("   {}   {:7}   {:7}        Count    {:7}  Port%  {}     TR$    TR% ".format(
+    p("   {}   {:7}   {:7}        Count    {:7}   Port%  {}     TR$    TR% ".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Price".ljust(8)),
@@ -1566,14 +1571,14 @@ def report_total_equity(to_out, accounts, book, default_currency):
                     star_spacing,
                     c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
                     c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
-                    c(COLOR_SHARE_WORTH, f"{percent_of_portfolio_value:4.2f}"),
+                    c(COLOR_SHARE_WORTH, f"{percent_of_portfolio_value:5.2f}"),
                     colored.bg(ALT_BG) + c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
                     cb(total_return, f"{total_return:+8.2f}"),
                     cb(tr_percentage, f"{tr_percentage:+7.2f}"),
                 )
             )
 
-    p("   {}   {:7}   {:7}        Share    {:7}  Port%  {}    Total return".format(
+    p("   {}   {:7}   {:7}        Share    {:7}   Port%  {}    Total return".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Market".ljust(8)),
@@ -1582,7 +1587,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Cost".ljust(7)),
     ))
-    p("   {}   {:7}   {:7}        Count    {:7}         {}     TR$    TR% ".format(
+    p("   {}   {:7}   {:7}        Count    {:7}          {}     TR$    TR% ".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Price".ljust(8)),

@@ -207,7 +207,7 @@ def main(args):
 
             screen.fill(up_to_column=1)
 
-        no_of_streams = int((Screen.get_tty_height() - 10) / 2)
+        no_of_streams = (Screen.get_tty_height() - 10) // 2
         ledger.reporter.report_year(
             (screen, 2),
             "Year",
@@ -218,7 +218,7 @@ def main(args):
             faucets=no_of_streams,
         )
 
-        to_stdout(screen.str())
+        to_stdout(screen.str().strip())
         screen.reset()
 
 
