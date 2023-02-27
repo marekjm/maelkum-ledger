@@ -478,7 +478,7 @@ def parse_transfer_record(lines):
         )
 
     is_equity_tx = False
-    fee_value, fee_currency = None, None
+    fee_value, fee_currency = decimal.Decimal(), None
     tx_intermediary = None
     tags = []
     if str(lines[i]) == "with":
@@ -495,10 +495,13 @@ def parse_transfer_record(lines):
             if tt.startswith("fee:"):
                 tk, tv = tt.split(":", 1)
                 fee_value, fee_currency = tv.strip().split()
+                fee_value = decimal.Decimal(fee_value)
             if tt.startswith("intermediary:"):
                 tk, tv = tt.split(":", 1)
                 tx_intermediary = tv.strip()
             i += 1
+
+    transfer_balance -= fee_value
 
     # FIXME Equity transactions may include fees, so can be unbalanced. This
     # should be checked, but the implementation will have to wait.
@@ -564,8 +567,12 @@ def parse_transfer_record(lines):
                 )
             )
             exit(1)
+
         # FIXME Reduce the outs amount by the fee to prevent double reduction of
         # the account's balance.
+        original_value = ins[0].value
+        ins[0].value = ((original_value[0] - fee_value), original_value[1],)
+
         fee = ir.Expense_tx(
             source,
             timestamp,
@@ -575,7 +582,7 @@ def parse_transfer_record(lines):
                     timestamp,
                     ins[0].account,
                     (
-                        decimal.Decimal(fee_value),
+                        fee_value,
                         fee_currency,
                     ),
                 )
@@ -586,7 +593,7 @@ def parse_transfer_record(lines):
                     timestamp,
                     (None, tx_intermediary),
                     (
-                        -decimal.Decimal(fee_value),
+                        -fee_value,
                         fee_currency,
                     ),
                 )

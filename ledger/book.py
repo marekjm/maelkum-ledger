@@ -220,6 +220,15 @@ def calculate_balances(accounts, book, default_currency):
                 ensure_currency_match(accounts, a)
                 kind, name = a.account
                 accounts[kind][name]["balance"] += a.value[0]
+
+            fee_value = decimal.Decimal()
+            fee_currency = default_currency
+            for t in each.tags:
+                s = str(t).strip()
+                if s.startswith("fee:"):
+                    fee = s.split()[1:]
+                    fee_currency = fee[1]
+                    fee_value = decimal.Decimal(fee[0])
         elif type(each) is ir.Equity_tx:
             inflow = decimal.Decimal()
             outflow = decimal.Decimal()
@@ -276,7 +285,14 @@ def calculate_balances(accounts, book, default_currency):
                 "shares": this_shares,
             }
 
-            if -outflow != (inflow - fee_value):
+            # Do not consider fee_value like this:
+            #
+            #   if -outflow != (inflow - fee_value):
+            #
+            # as it was already handled. During the parsing stage the transfer
+            # transaction was split into transfer itself, and an extra expense
+            # transaction representing the fee.
+            if -outflow != inflow:
                 fmt = "inflow {} from {} does not equal outflow {} to {} plus fees {}"
                 sys.stderr.write(
                     ("{}: {}: " + fmt + "\n").format(
