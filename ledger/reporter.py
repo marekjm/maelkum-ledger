@@ -1352,7 +1352,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
     ALT_BG = "grey_11"
 
-    p("   {}   {:7}   {:7}        Share    {:7}          {}    Total return".format(
+    p("   {}   {:7}   {:7}         Share    {:7}          {}    Total return".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Market".ljust(8)),
@@ -1361,7 +1361,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Cost".ljust(7)),
     ))
-    p("   {}   {:7}   {:7}        Count    {:7}   Port%  {}     TR$    TR% ".format(
+    p("   {}   {:7}   {:7}         Count    {:7}   Port%  {}     TR$    TR% ".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Price".ljust(8)),
@@ -1502,7 +1502,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 COLOR_BALANCE_NEGATIVE,
             )
 
-            star_spacing = 5 - len(f"{abs(share_price_diff):.2f}")
+            star_spacing = 6 - len(f"{abs(share_price_diff):.2f}")
             star_spacing = " " * star_spacing
 
             dividends = stats["dividends"]
@@ -1590,7 +1590,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 )
             )
 
-    p("   {}   {:7}   {:7}        Share    {:7}   Port%  {}    Total return".format(
+    p("   {}   {:7}   {:7}         Share    {:7}   Port%  {}    Total return".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Market".ljust(8)),
@@ -1599,7 +1599,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Cost".ljust(7)),
     ))
-    p("   {}   {:7}   {:7}        Count    {:7}          {}     TR$    TR% ".format(
+    p("   {}   {:7}   {:7}         Count    {:7}          {}     TR$    TR% ".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Price".ljust(8)),
