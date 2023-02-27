@@ -546,7 +546,20 @@ def report_common_impl(
         LABEL_BG = "dark_green"
         LABEL_FG = "grey_82"
         LABEL_WIDTH = COLUMN_WIDTH - 32 - 2
+
+        # Visibility multiplier is only useful when one faucet absolutely dwarfs
+        # all the others. Naive implementation would just show a bar for this
+        # one faucet and leave all the others without background bars.
+        #
+        # This breaks down, however, when all the faucets contribute on the same
+        # order of mangnitute. This is why the VISIBILITY_MULTIPLIER must be
+        # reset to one when there is no single faucet overwhelming the others.
         VISIBILITY_MULTIPLIER = 5
+        # FIXME Detect true difference between faucets' contributions, and not
+        # hardcode a quick, dirty "fix".
+        if len(revenue_faucets_sorted) <= 3:
+            VISIBILITY_MULTIPLIER = 1
+
         deepest_faucet = (faucet_1st[1] / base_revenues) if faucet_1st is not None else None
 
         if faucet_1st is not None:
