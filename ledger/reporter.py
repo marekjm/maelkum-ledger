@@ -1133,7 +1133,7 @@ def report_total_balances(to_out, accounts, book, default_currency):
             fmt = "  {}: {} {}"
             m += fmt.format(
                 name.ljust(longest_account_name),
-                util.colors.colorise_balance(balance_raw, "{:8.2f}"),
+                util.colors.colorise_balance(balance_raw, "{:9.2f}"),
                 acc["currency"],
             )
 
