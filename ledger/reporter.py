@@ -389,7 +389,7 @@ def report_common_impl(
     is_all_time_report = (
         max(revenues[-1].timestamp, revenues[-1].timestamp)
         - min(revenues[0].timestamp, revenues[0].timestamp)
-    ).days > 366
+    ).days > 367
 
     expense_sinks_sorted = sorted(expense_sinks.items(), key=lambda each: each[1])
     revenue_faucets_sorted = sorted(
