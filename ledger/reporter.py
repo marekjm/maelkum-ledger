@@ -398,7 +398,7 @@ def report_common_impl(
 
     sink_faucet_value_len = 0
     if expense_sinks_sorted:
-        sink_faucet_value_len = max(sink_faucet_value_len, expense_sinks_sorted[0][1])
+        sink_faucet_value_len = max(sink_faucet_value_len, abs(expense_sinks_sorted[0][1]))
     if revenue_faucets_sorted:
         sink_faucet_value_len = max(sink_faucet_value_len, revenue_faucets_sorted[0][1])
     sink_faucet_value_len = len("{:.2f}".format(abs(sink_faucet_value_len)))
@@ -485,7 +485,7 @@ def report_common_impl(
                 )
             )
 
-        extra_sinks = 1 + (2 if monthly_breakdown else 0)
+        extra_sinks = 3 + (2 if monthly_breakdown else 0)
 
         if is_all_time_report:
             extra_sinks += 36
@@ -494,9 +494,9 @@ def report_common_impl(
             extra_sinks = max(0, sinks - 3)
 
         fmt = (
-            "       {:3d}th: {} {} {} {} {}"
+            "       {:3d}th: {} {} {} {}"
             if (extra_sinks >= 7)
-            else "         {:1d}th: {} {} {} {} {}"
+            else "         {:1d}th: {} {} {} {}"
         )
         for n in range(3, 3 + extra_sinks):
             if n >= len(expense_sinks_sorted):
@@ -525,7 +525,6 @@ def report_common_impl(
                     default_currency,
                     cp(ratio * 100),
                     label,
-                    label_bg,
                 )
             )
 
@@ -611,7 +610,7 @@ def report_common_impl(
                 )
             )
 
-        extra_faucets = 1 + (8 if monthly_breakdown else 0)
+        extra_faucets = 3 + (8 if monthly_breakdown else 0)
 
         if is_all_time_report:
             extra_faucets += 30
