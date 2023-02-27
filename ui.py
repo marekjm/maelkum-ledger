@@ -156,6 +156,7 @@ def main(args):
         months_in_column = round(NOW.month / 2)
         no_of_streams = no_of_streams - (months_in_column * 10)
         no_of_streams = int(no_of_streams / months_in_column / 2)
+        # no_of_streams = 1000
 
         MONTHS = [
             "January",
