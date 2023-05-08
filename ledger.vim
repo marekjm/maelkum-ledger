@@ -17,7 +17,7 @@ syntax keyword ledgerOperator   account budget
 syntax keyword ledgerStatement  asset liability equity
 
 " Define currency shorthands as special syntax.
-syntax keyword ledgerSpecial    PLN JPY USD EUR CHF NOK GBP CZK
+syntax keyword ledgerSpecial    PLN JPY USD EUR CHF NOK GBP CZK SEK
 
 syntax match ledgerDate         "\<[0-9][0-9][0-9][0-9]-\(1[0-2]\|0[1-9]\)-\(3[01]\|[0-2][0-9]\)\>"
 syntax match ledgerDatetime     "\<[0-9][0-9][0-9][0-9]-\(1[0-2]\|0[1-9]\)-\(3[01]\|[0-2][0-9]\)T\([0-1][0-9]\|2[0-3]\):[0-5][0-9]\>"
