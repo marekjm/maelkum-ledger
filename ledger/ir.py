@@ -136,3 +136,9 @@ class Configuration_line(Item):
         super().__init__(text, datetime.datetime(1970, 1, 1))  # no timestamp
         self.key = key
         self.value = value
+
+class Group(Item):
+    def __init__(self, text: list[str], name: str, members: set[str]):
+        super().__init__(text, datetime.datetime(1970, 1, 1))  # no timestamp
+        self.name = name
+        self.members = members

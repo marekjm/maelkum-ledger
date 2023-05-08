@@ -39,6 +39,20 @@ def get_txs_of_period(period_span, txs):
     )
 
 
+def aggregate_groups(book, expense_sinks, revenue_faucets):
+    for gr in book:
+        if type(gr) is ir.Group:
+            for streams in (expense_sinks, revenue_faucets,):
+                group_name = f"[[{gr.name}]]"
+                streams[group_name] = decimal.Decimal()
+                for gr_member in gr.members:
+                    match streams.get(gr_member):
+                        case None:
+                            pass
+                        case x:
+                            streams[group_name] += x
+                            del streams[gr_member]
+
 def report_common_impl(
     to_out,
     txs,
@@ -48,6 +62,7 @@ def report_common_impl(
     monthly_breakdown=None,
     sinks=None,
     faucets=None,
+    aggregate=False,
 ):
     book, currency_basket = book
 
@@ -209,6 +224,9 @@ def report_common_impl(
             revenue_faucets[faucet] += rev_sum
         revenue_values.append(rev_sum)
         total_revenues += rev_sum
+
+    if aggregate:
+        aggregate_groups(book, expense_sinks, revenue_faucets)
 
     # Report net flows from sinks and faucets.
     #
@@ -709,6 +727,7 @@ def report_period_impl(
     monthly_breakdown=None,
     sinks=None,
     faucets=None,
+    aggregate=False,
 ):
     def p(s=""):
         screen, column = to_out
@@ -747,6 +766,7 @@ def report_period_impl(
         monthly_breakdown=monthly_breakdown,
         sinks=sinks,
         faucets=faucets,
+        aggregate=aggregate,
     )
 
 
@@ -918,6 +938,7 @@ def report_year(to_out, title, year, book, default_currency, sinks=None, faucets
         monthly_breakdown=True,
         sinks=sinks,
         faucets=faucets,
+        aggregate=True,
     )
 
 
@@ -943,6 +964,7 @@ def report_all_time(to_out, book, default_currency):
         book,
         default_currency,
         monthly_breakdown=True,
+        aggregate=True,
     )
 
 

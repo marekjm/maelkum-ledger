@@ -692,6 +692,31 @@ def parse_dividend_record(lines):
     )
 
 
+def parse_group(lines):
+    source = []
+
+    # Parse the `group NAME` line.
+    source.append(lines[0])
+    parts = str(source[-1]).split(maxsplit=1)
+    name = parts[1]
+
+    members = []
+    i = 1
+    while str(lines[i]) != "end":
+        source.append(lines[i])
+        i += 1
+
+        members.append(str(source[-1]).strip())
+
+    source.append(lines[i])
+
+    return len(source), ir.Group(
+        source,
+        name,
+        set(members),
+    )
+
+
 def parse(lines):
     items = []
 
@@ -723,6 +748,8 @@ def parse(lines):
         elif parts[0] == "dividend":
             n, item, rx = parse_dividend_record(lines[i:])
             items.append(rx)
+        elif parts[0] == "group":
+            n, item = parse_group(lines[i:])
         else:
             print(type(each), repr(each))
             fmt = "invalid syntax in `{}`"
