@@ -434,7 +434,7 @@ def report_common_impl(
         sink_3rd = expense_sinks_sorted[2] if len(expense_sinks_sorted) > 2 else None
 
         cv = lambda s: util.colors.colorise(util.colors.COLOR_EXPENSES, s)
-        cp = lambda s: util.colors.colorise("white", f"{s:5.2f}%")
+        cp = lambda s: util.colors.colorise("white", f"{s:6.2f}%")
 
         LABEL_BG = "dark_red_1"
         # LABEL_FG = "grey_62" # default fg colour
