@@ -559,7 +559,7 @@ def report_common_impl(
         )
 
         cv = lambda s: util.colors.colorise(util.colors.COLOR_REVENUES, s)
-        cp = lambda s: util.colors.colorise("white", f"{s:5.2f}%")
+        cp = lambda s: util.colors.colorise("white", f"{s:6.2f}%")
 
         LABEL_BG = "dark_green"
         LABEL_FG = "grey_82"
