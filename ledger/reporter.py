@@ -914,7 +914,8 @@ def report_last_year(to_out, book, default_currency):
     )
 
 
-def report_year(to_out, title, year, book, default_currency, sinks=None, faucets=None):
+def report_year(to_out, title, year, book, default_currency, sinks=None,
+                faucets=None, aggregate=True):
     period_begin = datetime.datetime.strptime(
         f"{year}-01-01T00:00",
         constants.TIMESTAMP_FORMAT,
@@ -944,7 +945,7 @@ def report_year(to_out, title, year, book, default_currency, sinks=None, faucets
         monthly_breakdown=True,
         sinks=sinks,
         faucets=faucets,
-        aggregate=True,
+        aggregate=aggregate,
     )
 
 

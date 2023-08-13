@@ -35,6 +35,21 @@ to_stdout = lambda fmt, *args, **kwargs: to_impl(sys.stdout, fmt, *args, **kwarg
 to_stderr = lambda fmt, *args, **kwargs: to_impl(sys.stderr, fmt, *args, **kwargs)
 
 
+MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+]
+
 def main(args):
     colored.set_tty_aware(False)
 
@@ -106,6 +121,18 @@ def main(args):
 
     if REPORT_TYPE == "default":
         # Default report.
+        # A high-level overview of income and expenses during several
+        # immediately important periods of time:
+        #
+        #  - last two days
+        #  - last two months
+        #  - last two years
+        #  - all time
+        #
+        # It also includes overview of accounts.
+        #
+        # Useful for quick assesment of how the financial situation is
+        # developing.
         Screen = ledger.util.screen.Screen
         screen = Screen(Screen.get_tty_width(), 2)
 
@@ -140,8 +167,10 @@ def main(args):
         to_stdout(screen.str())
         screen.reset()
 
-    if REPORT_TYPE == "year":
+    if REPORT_TYPE == "overyear":
         # Yearly report.
+        # A high-level overview of income and expenses; with per-month and
+        # whole-year breakdowns.
         Screen = ledger.util.screen.Screen
         screen = Screen(Screen.get_tty_width(), 3)
 
@@ -158,20 +187,6 @@ def main(args):
         no_of_streams = int(no_of_streams / months_in_column / 2)
         # no_of_streams = 1000
 
-        MONTHS = [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-        ]
         i = 0
         while i < len(MONTHS):
             ledger.reporter.report_month(
@@ -217,6 +232,97 @@ def main(args):
             default_currency,
             sinks=no_of_streams,
             faucets=no_of_streams,
+        )
+
+        to_stdout(screen.str().strip())
+        screen.reset()
+
+    if REPORT_TYPE == "month":
+        # Detailed report for a single month.
+        Screen = ledger.util.screen.Screen
+        screen = Screen(Screen.get_tty_width(), 2)
+
+        if len(args) <= 3:
+            exit(1)
+
+        year = args[2]
+        month = int(args[3])
+        BEGIN = datetime.datetime.strptime(
+            f"{year}-{month:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
+        )
+        END = datetime.datetime.strptime(
+            f"{year}-{month+1:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
+        ) - datetime.timedelta(milliseconds = 1)
+
+        no_of_streams = Screen.get_tty_height() - 10
+
+        ledger.reporter.report_month(
+            (screen, 0),
+            MONTHS[month],
+            (
+                BEGIN.year,
+                BEGIN.month,
+            ),
+            book,
+            default_currency,
+            sinks=no_of_streams,
+            faucets=0,
+        )
+
+        ledger.reporter.report_month(
+            (screen, 1),
+            MONTHS[month],
+            (
+                BEGIN.year,
+                BEGIN.month,
+            ),
+            book,
+            default_currency,
+            sinks=0,
+            faucets=no_of_streams,
+        )
+
+        to_stdout(screen.str().strip())
+        screen.reset()
+
+    if REPORT_TYPE == "year":
+        # Detailed report for a single year.
+        Screen = ledger.util.screen.Screen
+        screen = Screen(Screen.get_tty_width(), 2)
+
+        if len(args) <= 2:
+            exit(1)
+
+        year = int(args[2])
+        BEGIN = datetime.datetime.strptime(
+            f"{year}-01-01T00:00", ledger.constants.TIMESTAMP_FORMAT
+        )
+        END = datetime.datetime.strptime(
+            f"{year+1}-01-01T00:00", ledger.constants.TIMESTAMP_FORMAT
+        ) - datetime.timedelta(milliseconds = 1)
+
+        no_of_streams = Screen.get_tty_height() - 10
+
+        ledger.reporter.report_year(
+            (screen, 0),
+            f"Year {year}",
+            year,
+            book,
+            default_currency,
+            sinks=no_of_streams,
+            faucets=0,
+            aggregate=False,
+        )
+
+        ledger.reporter.report_year(
+            (screen, 1),
+            f"Year {year}",
+            year,
+            book,
+            default_currency,
+            sinks=0,
+            faucets=no_of_streams,
+            aggregate=False,
         )
 
         to_stdout(screen.str().strip())
