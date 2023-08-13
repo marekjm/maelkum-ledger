@@ -422,13 +422,19 @@ def report_common_impl(
     sink_faucet_value_len = len("{:.2f}".format(abs(sink_faucet_value_len)))
     fmt_value = lambda value: ("{{:{}.2f}}".format(sink_faucet_value_len).format(value))
 
-    if sinks is not None and faucets is not None:
+    # If sinks and faucets are given some non-default values but we have fewer
+    # faucets then requested then let's provide additional info about more
+    # sinks. This way we don't waste any screen real estate that may be free.
+    #
+    # This is unwanted however, if the caller EXPLICITLY (ie, by passing a
+    # non-none number of sinks) requested no sinks to be displayed.
+    if sinks is not None and faucets is not None and sinks != 0:
         if len(revenue_faucets_sorted) < faucets:
             space_left = (faucets - len(revenue_faucets_sorted))
             sinks += space_left
 
     # Expense sink statistics.
-    if expense_sinks_sorted:
+    if expense_sinks_sorted and (sinks or sinks is None):
         sink_1st = expense_sinks_sorted[0] if len(expense_sinks_sorted) > 0 else None
         sink_2nd = expense_sinks_sorted[1] if len(expense_sinks_sorted) > 1 else None
         sink_3rd = expense_sinks_sorted[2] if len(expense_sinks_sorted) > 2 else None
@@ -547,7 +553,7 @@ def report_common_impl(
             )
 
     # Expense faucet statistics.
-    if revenue_faucets_sorted:
+    if revenue_faucets_sorted and (faucets or faucets is None):
         faucet_1st = (
             revenue_faucets_sorted[0] if len(revenue_faucets_sorted) > 0 else None
         )
