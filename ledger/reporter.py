@@ -300,7 +300,7 @@ def report_common_impl(
     fmt = "  Expenses:   {} {}".format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_NEGATIVE,
-            "{:8.2f}".format(abs(base_expenses)),
+            "{:9.2f}".format(abs(base_expenses)),
         ),
         default_currency,
     )
@@ -321,7 +321,7 @@ def report_common_impl(
     fmt = "  Revenues:   {} {}".format(
         util.colors.colorise(
             util.colors.COLOR_BALANCE_POSITIVE,
-            "{:8.2f}".format(abs(net_revenues)),
+            "{:9.2f}".format(abs(net_revenues)),
         ),
         default_currency,
     )
@@ -340,13 +340,13 @@ def report_common_impl(
     if net <= 0:
         fmt = fmt.format(
             "loss:  ",
-            util.colors.colorise_balance(net, "{:8.2f}"),
+            util.colors.colorise_balance(net, "{:9.2f}"),
             default_currency,
         )
     elif net > 0:
         fmt = fmt.format(
             "income:",
-            util.colors.colorise_balance(net, "{:8.2f}"),
+            util.colors.colorise_balance(net, "{:9.2f}"),
             default_currency,
         )
     if monthly_breakdown is not None:
