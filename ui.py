@@ -245,20 +245,23 @@ def main(args):
         if len(args) <= 3:
             exit(1)
 
-        year = args[2]
+        year = int(args[2])
         month = int(args[3])
         BEGIN = datetime.datetime.strptime(
             f"{year}-{month:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
         )
+
+        end_month = (month + 1 if month != 12 else month)
+        end_year = (year if month != 12 else year + 1)
         END = datetime.datetime.strptime(
-            f"{year}-{month+1:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
+            f"{year}-{month:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
         ) - datetime.timedelta(milliseconds = 1)
 
         no_of_streams = Screen.get_tty_height() - 10
 
         ledger.reporter.report_month(
             (screen, 0),
-            MONTHS[month],
+            MONTHS[month - 1],
             (
                 BEGIN.year,
                 BEGIN.month,
@@ -271,7 +274,7 @@ def main(args):
 
         ledger.reporter.report_month(
             (screen, 1),
-            MONTHS[month],
+            MONTHS[month - 1],
             (
                 BEGIN.year,
                 BEGIN.month,
