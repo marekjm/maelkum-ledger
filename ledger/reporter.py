@@ -753,9 +753,11 @@ def report_period_impl(
     )
 
     if monthly_breakdown:
-        delta = period_end - period_begin
-        # FIXME count months instead of calculating an approximation
-        monthly_breakdown = decimal.Decimal(delta.days) / 30
+        def count_months_in_period(begin, end):
+            full_years = (end.year - begin.year)
+            months = (end.month - begin.month + 1)
+            return (full_years * 12) + months
+        monthly_breakdown = count_months_in_period(period_begin, period_end)
     else:
         monthly_breakdown = None
 
