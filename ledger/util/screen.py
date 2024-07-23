@@ -3,7 +3,7 @@ import re
 
 
 class Screen:
-    ANSI_CODE = re.compile("\x1b\[(?:0|\d+;\d+;\d+)m")
+    ANSI_CODE = re.compile(r"\x1b\[(?:0|\d+;\d+;\d+)m")
 
     @staticmethod
     def get_tty_width():
