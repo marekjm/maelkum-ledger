@@ -1383,23 +1383,23 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
     ALT_BG = "grey_11"
 
-    p("   {}   {:7}   {:7}         Share    {:7}          {}    Total return".format(
+    p("   {}   {:7}   {:7}         Share    {:7}          {}   Total return".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Market".ljust(8)),
         "Average",
         "Market",
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Cost".ljust(7)),
+                                                  "  Cost".ljust(8)),
     ))
-    p("   {}   {:7}   {:7}         Count    {:7}   Port%  {}     TR$    TR% ".format(
+    p("   {}   {:7}   {:7}         Count    {:7}   Port%  {}    TR$    TR% ".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Price".ljust(8)),
         " Price",
         "Value",
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Basis".ljust(7)),
+                                                  "  Basis".ljust(8)),
     ))
 
     for name in sorted(eq_accounts.keys()):
@@ -1415,6 +1415,10 @@ def report_total_equity(to_out, accounts, book, default_currency):
             cb = account["v2_cost_basis"]
             tr = account["v2_total_return"]
             tr_sign = "+" if tr >= 0 else ""
+
+            # FIXME This is buggy. The total return on an exchange gives...
+            # weird results like +2712% return. I don't know if it's that useful
+            # anyway. Maybe just remove it.
             title = "  {} => {} {} ({}{} {}, {}{}%)".format(
                 name,
                 util.colors.colorise_balance(mv),
@@ -1424,6 +1428,12 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 ac,
                 util.colors.colorise_balance(tr, tr_sign),
                 util.colors.colorise_balance(max((tr / (cb or 1) * 100), -100)),
+            )
+
+            title = "  {} => {} {}".format(
+                name,
+                util.colors.colorise_balance(mv),
+                ac,
             )
 
             if account["currency"] != default_currency:
@@ -1481,15 +1491,12 @@ def report_total_equity(to_out, accounts, book, default_currency):
                     mv_in_default = mv * rate
                     tr_in_default = tr * rate
 
-                fmt = " ≅ {} {} ({}{} {}) at {} {}/{}"
+                fmt = " ≅ {} {} at {} {}/{}"
                 title += fmt.format(
                     util.colors.colorise_balance(
                         (mv_in_default or 0),
                         "{:7.2f}",
                     ),
-                    default_currency,
-                    util.colors.colorise_balance(tr, ("+" if tr >= 0 else "")),
-                    util.colors.colorise_balance(tr_in_default),
                     default_currency,
                     util.colors.colorise(
                         util.colors.COLOR_EXCHANGE_RATE,
@@ -1615,27 +1622,27 @@ def report_total_equity(to_out, accounts, book, default_currency):
                     c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
                     c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
                     c(COLOR_SHARE_WORTH, f"{percent_of_portfolio_value:5.2f}"),
-                    colored.bg(ALT_BG) + c(COLOR_SHARE_PRICE, f"{cost_basis:7.2f}"),
+                    colored.bg(ALT_BG) + c(COLOR_SHARE_PRICE, f"{cost_basis:8.2f}"),
                     cb(total_return, f"{total_return:+8.2f}"),
                     cb(tr_percentage, f"{tr_percentage:+7.2f}"),
                 )
             )
 
-    p("   {}   {:7}   {:7}         Share    {:7}   Port%  {}    Total return".format(
+    p("   {}   {:7}   {:7}         Share    {:7}   Port%  {}   Total return".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Market".ljust(8)),
         "Average",
         "Market",
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Cost".ljust(7)),
+                                                  "  Cost".ljust(8)),
     ))
-    p("   {}   {:7}   {:7}         Count    {:7}          {}     TR$    TR% ".format(
+    p("   {}   {:7}   {:7}         Count    {:7}          {}    TR$    TR% ".format(
         (" " * company_name_length),
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
                                                   " Price".ljust(8)),
         " Price",
         "Value",
         colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Basis".ljust(7)),
+                                                  "  Basis".ljust(8)),
     ))
