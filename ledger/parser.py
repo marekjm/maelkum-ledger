@@ -8,13 +8,34 @@ from . import util
 from . import constants
 
 
+def parse_timestamp(part : str, location) -> datetime.datetime:
+    try:
+        return datetime.datetime.strptime(part, "%Y-%m-%dT%H:%M")
+    except Exception:
+        fmt = "invalid timestamp `{}`"
+        sys.stderr.write(
+            ("{}: {}: " + fmt + "\n").format(
+                util.colors.colorise(
+                    "white",
+                    location,
+                ),
+                util.colors.colorise(
+                    "red",
+                    "error",
+                ),
+                str(part),
+            )
+        )
+        exit(1)
+
+
 def parse_open_account(lines):
     source = []
 
     # Parse the `open account DATETIME KIND NAME` line.
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[2], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[2], source[-1].location)
     kind = parts[3]
     name = parts[4]
 
@@ -63,7 +84,7 @@ def parse_close_account(lines):
     # Parse the `open account DATETIME KIND NAME` line.
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[2], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[2], source[-1].location)
     kind = parts[3]
     name = parts[4]
 
@@ -80,7 +101,7 @@ def parse_currency_rates(lines):
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[1], source[-1].location)
 
     rates = []
     i = 1
@@ -132,7 +153,7 @@ def parse_balance_record(lines):
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[1], source[-1].location)
 
     rates = []
     i = 1
@@ -190,7 +211,7 @@ def parse_expense_record(lines):
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[1], lines[0].location)
 
     non_owned_account_present = False
 
@@ -352,7 +373,7 @@ def parse_revenue_record(lines):
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[1], source[-1].location)
 
     accounts = []
     i = 1
@@ -425,7 +446,7 @@ def parse_transfer_record(lines):
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[1], source[-1].location)
 
     # This must be exactly zero. The amount of money must stay constant, as it
     # is only transferred between accounts.
@@ -609,7 +630,7 @@ def parse_dividend_record(lines):
 
     source.append(lines[0])
     parts = str(source[-1]).split()
-    timestamp = datetime.datetime.strptime(parts[1], "%Y-%m-%dT%H:%M")
+    timestamp = parse_timestamp(parts[1], source[-1].location)
 
     company = None
     eq_account = None
