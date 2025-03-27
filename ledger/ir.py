@@ -85,11 +85,7 @@ class Transaction_record(Item):
         for each in self.tags:
             k, v = str(each).strip().split(":", maxsplit=1)
             if k == "effective_date":
-                ed = datetime.datetime.strptime(
-                    v.strip(),
-                    constants.TIMESTAMP_FORMAT,
-                )
-                self._effective_date = ed
+                self._effective_date = util.chrono.parse_timestamp(v)
                 break
         if self._effective_date is None:
             self._effective_date = self.timestamp
