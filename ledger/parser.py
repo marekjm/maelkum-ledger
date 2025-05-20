@@ -10,7 +10,7 @@ from . import constants
 
 def parse_timestamp(part : str, location) -> datetime.datetime:
     try:
-        return datetime.datetime.strptime(part, "%Y-%m-%dT%H:%M")
+        return util.chrono.parse_timestamp(part)
     except Exception:
         fmt = "invalid timestamp `{}`"
         sys.stderr.write(
