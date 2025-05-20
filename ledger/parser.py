@@ -8,7 +8,7 @@ from . import util
 from . import constants
 
 
-def parse_timestamp(part : str, location) -> datetime.datetime:
+def parse_timestamp(part: str, location) -> datetime.datetime:
     try:
         return util.chrono.parse_timestamp(part)
     except Exception:
@@ -592,7 +592,10 @@ def parse_transfer_record(lines):
         # FIXME Reduce the outs amount by the fee to prevent double reduction of
         # the account's balance.
         original_value = ins[0].value
-        ins[0].value = ((original_value[0] - fee_value), original_value[1],)
+        ins[0].value = (
+            (original_value[0] - fee_value),
+            original_value[1],
+        )
 
         fee = ir.Expense_tx(
             source,

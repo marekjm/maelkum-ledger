@@ -87,22 +87,26 @@ def main(args):
 
     BOOK_MAIN = args[0]
     if not os.path.exists(BOOK_MAIN):
-        to_stderr("{}: given book path does not exist: {}".format(
-            ledger.util.colors.colorise(
-                ledger.util.colors.COLOR_CATASTROPHE,
-                "error",
-            ),
-            BOOK_MAIN,
-        ))
+        to_stderr(
+            "{}: given book path does not exist: {}".format(
+                ledger.util.colors.colorise(
+                    ledger.util.colors.COLOR_CATASTROPHE,
+                    "error",
+                ),
+                BOOK_MAIN,
+            )
+        )
         exit(1)
     if not os.path.isfile(BOOK_MAIN):
-        to_stderr("{}: given book path is not a file: {}".format(
-            ledger.util.colors.colorise(
-                ledger.util.colors.COLOR_CATASTROPHE,
-                "error",
-            ),
-            BOOK_MAIN,
-        ))
+        to_stderr(
+            "{}: given book path is not a file: {}".format(
+                ledger.util.colors.colorise(
+                    ledger.util.colors.COLOR_CATASTROPHE,
+                    "error",
+                ),
+                BOOK_MAIN,
+            )
+        )
         exit(1)
 
     REPORT_TYPE = args[1] if len(args) > 1 else "default"
@@ -295,11 +299,11 @@ def main(args):
             f"{year}-{month:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
         )
 
-        end_month = (month + 1 if month != 12 else month)
-        end_year = (year if month != 12 else year + 1)
+        end_month = month + 1 if month != 12 else month
+        end_year = year if month != 12 else year + 1
         END = datetime.datetime.strptime(
             f"{year}-{month:02d}-01T00:00", ledger.constants.TIMESTAMP_FORMAT
-        ) - datetime.timedelta(milliseconds = 1)
+        ) - datetime.timedelta(milliseconds=1)
 
         no_of_streams = Screen.get_tty_height() - 10
 
@@ -346,7 +350,7 @@ def main(args):
         )
         END = datetime.datetime.strptime(
             f"{year+1}-01-01T00:00", ledger.constants.TIMESTAMP_FORMAT
-        ) - datetime.timedelta(milliseconds = 1)
+        ) - datetime.timedelta(milliseconds=1)
 
         no_of_streams = Screen.get_tty_height() - 10
 

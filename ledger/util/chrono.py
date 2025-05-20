@@ -3,7 +3,7 @@ import datetime
 from .. import constants
 
 
-def parse_timestamp(s : str) -> datetime.datetime:
+def parse_timestamp(s: str) -> datetime.datetime:
     s = s.strip()  # Just to make sure.
 
     try:

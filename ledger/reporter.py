@@ -42,7 +42,10 @@ def get_txs_of_period(period_span, txs):
 def aggregate_groups(book, expense_sinks, revenue_faucets):
     for gr in book:
         if type(gr) is ir.Group:
-            for streams in (expense_sinks, revenue_faucets,):
+            for streams in (
+                expense_sinks,
+                revenue_faucets,
+            ):
                 group_name = f"[[{gr.name}]]"
                 streams[group_name] = decimal.Decimal()
                 for gr_member in gr.members:
@@ -52,6 +55,7 @@ def aggregate_groups(book, expense_sinks, revenue_faucets):
                         case x:
                             streams[group_name] += x
                             del streams[gr_member]
+
 
 def report_common_impl(
     to_out,
@@ -294,8 +298,8 @@ def report_common_impl(
     #     Because there is a sink and a faucet for your mother, she WILL be
     #     affected by the net/total distintion.
     BASE_NET = True
-    base_expenses = (net_expenses if BASE_NET else total_expenses)
-    base_revenues = (net_revenues if BASE_NET else total_revenues)
+    base_expenses = net_expenses if BASE_NET else total_expenses
+    base_revenues = net_revenues if BASE_NET else total_revenues
 
     fmt = "  Expenses:   {} {}".format(
         util.colors.colorise(
@@ -416,7 +420,9 @@ def report_common_impl(
 
     sink_faucet_value_len = 0
     if expense_sinks_sorted:
-        sink_faucet_value_len = max(sink_faucet_value_len, abs(expense_sinks_sorted[0][1]))
+        sink_faucet_value_len = max(
+            sink_faucet_value_len, abs(expense_sinks_sorted[0][1])
+        )
     if revenue_faucets_sorted:
         sink_faucet_value_len = max(sink_faucet_value_len, revenue_faucets_sorted[0][1])
     sink_faucet_value_len = len("{:.2f}".format(abs(sink_faucet_value_len)))
@@ -430,7 +436,7 @@ def report_common_impl(
     # non-none number of sinks) requested no sinks to be displayed.
     if sinks is not None and faucets is not None and sinks != 0:
         if len(revenue_faucets_sorted) < faucets:
-            space_left = (faucets - len(revenue_faucets_sorted))
+            space_left = faucets - len(revenue_faucets_sorted)
             sinks += space_left
 
     # Expense sink statistics.
@@ -584,7 +590,9 @@ def report_common_impl(
         if len(revenue_faucets_sorted) <= 3:
             VISIBILITY_MULTIPLIER = 1
 
-        deepest_faucet = (faucet_1st[1] / base_revenues) if faucet_1st is not None else None
+        deepest_faucet = (
+            (faucet_1st[1] / base_revenues) if faucet_1st is not None else None
+        )
 
         if faucet_1st is not None:
             p(
@@ -603,7 +611,9 @@ def report_common_impl(
         if faucet_2nd is not None:
             ratio = faucet_2nd[1] / base_revenues
 
-            label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
+            label_bg = int(
+                LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet)
+            )
             label = faucet_2nd[0].ljust(LABEL_WIDTH)
             if label_bg:
                 with_bg = label[:label_bg]
@@ -626,7 +636,9 @@ def report_common_impl(
         if faucet_3rd is not None:
             ratio = faucet_3rd[1] / base_revenues
 
-            label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
+            label_bg = int(
+                LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet)
+            )
             label = faucet_3rd[0].ljust(LABEL_WIDTH)
             if label_bg:
                 with_bg = label[:label_bg]
@@ -668,7 +680,9 @@ def report_common_impl(
 
             ratio = faucet_nth[1] / base_revenues
 
-            label_bg = int(LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet))
+            label_bg = int(
+                LABEL_WIDTH * (ratio * VISIBILITY_MULTIPLIER / deepest_faucet)
+            )
             label = faucet_nth[0].ljust(LABEL_WIDTH)
             if label_bg:
                 with_bg = label[:label_bg]
@@ -753,10 +767,12 @@ def report_period_impl(
     )
 
     if monthly_breakdown:
+
         def count_months_in_period(begin, end):
-            full_years = (end.year - begin.year)
-            months = (end.month - begin.month + 1)
+            full_years = end.year - begin.year
+            months = end.month - begin.month + 1
             return (full_years * 12) + months
+
         monthly_breakdown = count_months_in_period(period_begin, period_end)
     else:
         monthly_breakdown = None
@@ -916,8 +932,16 @@ def report_last_year(to_out, book, default_currency):
     )
 
 
-def report_year(to_out, title, year, book, default_currency, sinks=None,
-                faucets=None, aggregate=True):
+def report_year(
+    to_out,
+    title,
+    year,
+    book,
+    default_currency,
+    sinks=None,
+    faucets=None,
+    aggregate=True,
+):
     period_begin = datetime.datetime.strptime(
         f"{year}-01-01T00:00",
         constants.TIMESTAMP_FORMAT,
@@ -1383,24 +1407,28 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
     ALT_BG = "grey_11"
 
-    p("   {}   {:7}   {:7}         Share    {:7}          {}   Total return".format(
-        (" " * company_name_length),
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Market".ljust(8)),
-        "Average",
-        "Market",
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  "  Cost".ljust(8)),
-    ))
-    p("   {}   {:7}   {:7}         Count    {:7}   Port%  {}    TR$    TR% ".format(
-        (" " * company_name_length),
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Price".ljust(8)),
-        " Price",
-        "Value",
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  "  Basis".ljust(8)),
-    ))
+    p(
+        "   {}   {:7}   {:7}         Share    {:7}          {}   Total return".format(
+            (" " * company_name_length),
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)),
+            "Average",
+            "Market",
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)),
+        )
+    )
+    p(
+        "   {}   {:7}   {:7}         Count    {:7}   Port%  {}    TR$    TR% ".format(
+            (" " * company_name_length),
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)),
+            " Price",
+            "Value",
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)),
+        )
+    )
 
     for name in sorted(eq_accounts.keys()):
         account = eq_accounts[name]
@@ -1611,7 +1639,8 @@ def report_total_equity(to_out, accounts, book, default_currency):
                         total_return,
                         (dividend_marker + company).rjust(company_name_length),
                     ),
-                    colored.bg(ALT_BG) + c(
+                    colored.bg(ALT_BG)
+                    + c(
                         COLOR_SHARE_PRICE_AVG,
                         fmt_share_price_mkt.format(share_price_mkt),
                     ),
@@ -1628,21 +1657,25 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 )
             )
 
-    p("   {}   {:7}   {:7}         Share    {:7}   Port%  {}   Total return".format(
-        (" " * company_name_length),
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Market".ljust(8)),
-        "Average",
-        "Market",
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  "  Cost".ljust(8)),
-    ))
-    p("   {}   {:7}   {:7}         Count    {:7}          {}    TR$    TR% ".format(
-        (" " * company_name_length),
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  " Price".ljust(8)),
-        " Price",
-        "Value",
-        colored.bg(ALT_BG) + util.colors.colorise(util.colors.COLOR_SHARE_PRICE,
-                                                  "  Basis".ljust(8)),
-    ))
+    p(
+        "   {}   {:7}   {:7}         Share    {:7}   Port%  {}   Total return".format(
+            (" " * company_name_length),
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)),
+            "Average",
+            "Market",
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)),
+        )
+    )
+    p(
+        "   {}   {:7}   {:7}         Count    {:7}          {}    TR$    TR% ".format(
+            (" " * company_name_length),
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)),
+            " Price",
+            "Value",
+            colored.bg(ALT_BG)
+            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)),
+        )
+    )
