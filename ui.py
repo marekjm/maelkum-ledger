@@ -5,7 +5,10 @@ import decimal
 import os
 import sys
 
-import colored
+try:
+    import colored
+except ImportError:
+    colored = None
 
 import ledger
 
@@ -50,17 +53,58 @@ MONTHS = [
     "December",
 ]
 
-def main(args):
-    colored.set_tty_aware(False)
 
-    to_stdout(
-        "Maelkum's ledger {} ({})".format(
-            ledger.__version__,
-            ledger.__commit__,
-        )
-    )
+def print_short_help():
+    exe = sys.argv[0]
+    print(f"{exe} <book> [default]")
+    print(f"{exe} <book> year <year>")
+    print(f"{exe} <book> month <year> <month>")
+    print(f"{exe} <book> overyear <year>")
+
+
+def main(args):
+    if colored is not None:
+        colored.set_tty_aware(False)
+
+    if not args:
+        print_short_help()
+        exit(1)
+
+    match args[0]:
+        case "--version":
+            to_stdout(
+                "maelkum-ledger {} ({})".format(
+                    ledger.__version__,
+                    ledger.__commit__,
+                )
+            )
+            exit(0)
+        case "--help":
+            print_short_help()
+            exit(0)
+        case _:
+            pass
 
     BOOK_MAIN = args[0]
+    if not os.path.exists(BOOK_MAIN):
+        to_stderr("{}: given book path does not exist: {}".format(
+            ledger.util.colors.colorise(
+                ledger.util.colors.COLOR_CATASTROPHE,
+                "error",
+            ),
+            BOOK_MAIN,
+        ))
+        exit(1)
+    if not os.path.isfile(BOOK_MAIN):
+        to_stderr("{}: given book path is not a file: {}".format(
+            ledger.util.colors.colorise(
+                ledger.util.colors.COLOR_CATASTROPHE,
+                "error",
+            ),
+            BOOK_MAIN,
+        ))
+        exit(1)
+
     REPORT_TYPE = args[1] if len(args) > 1 else "default"
 
     book_lines = ledger.loader.load(BOOK_MAIN)
