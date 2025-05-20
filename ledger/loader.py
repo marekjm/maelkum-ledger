@@ -46,7 +46,7 @@ def ingest_impl(out, raw, source_path, by, *, includes):
 
             if included_path in includes:
                 continue
-            includes.add(os.path.abspath(included_path))
+            includes.add(included_path)
 
             rawer = None
             with open(included_path, "r") as ifstream:
