@@ -38,16 +38,27 @@ class Line:
         )
 
 
-def ingest_impl(out, raw, source_path, by):
+def ingest_impl(out, raw, source_path, by, *, includes):
     for i, each in enumerate(raw):
         if re.compile(r"^include ").match(each):
             _, included_path = each.split()
+            included_path = os.path.abspath(included_path)
+
+            if included_path in includes:
+                continue
+            includes.add(os.path.abspath(included_path))
 
             rawer = None
             with open(included_path, "r") as ifstream:
                 rawer = ifstream.read().splitlines()
 
-            ingest_impl(out, rawer, included_path, by + (Location(source_path, i),))
+            ingest_impl(
+                out,
+                rawer,
+                included_path,
+                by + (Location(source_path, i),),
+                includes=includes,
+            )
 
             continue
 
@@ -66,7 +77,7 @@ def ingest(source_path, by):
         raw = ifstream.read().splitlines()
 
     source = []
-    ingest_impl(source, raw, source_path, by)
+    ingest_impl(source, raw, source_path, by, includes=set())
 
     return source
 
