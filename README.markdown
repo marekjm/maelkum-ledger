@@ -152,6 +152,13 @@ A "yearly overview" report with per-month summaries is also available:
 ]$ maelkum-ledger book.txt overyear 2025
 ```
 
+There is also a "span" report, to inspect the state of your finances between two
+specific time points:
+
+```
+]$ maelkum-ledger book.txt span 2025-01-01 2025-03-31
+```
+
 --------------------------------------------------------------------------------
 
 # Copyright and license

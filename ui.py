@@ -379,5 +379,52 @@ def main(args):
         to_stdout(screen.str().strip())
         screen.reset()
 
+    if REPORT_TYPE == "span":
+        # Detailed report for a single year.
+        Screen = ledger.util.screen.Screen
+        screen = Screen(Screen.get_tty_width(), 2)
+
+        if len(args) <= 2:
+            print("maelkum-ledger span <begin> [<end>]")
+            print("Both <begin> and <end> must be valid datestamps eg, 2024-06-13.")
+            exit(1)
+
+        begin = args[2]
+        end = args[3] if len(args) > 3 else datetime.datetime.now().strftime(ledger.constants.DAYSTAMP_FORMAT)
+
+        BEGIN = datetime.datetime.strptime(
+            begin, ledger.constants.DAYSTAMP_FORMAT
+        )
+        END = datetime.datetime.strptime(
+            end, ledger.constants.DAYSTAMP_FORMAT
+        )
+
+        no_of_streams = Screen.get_tty_height() - 10
+
+        ledger.reporter.report_period_impl(
+            (screen, 0),
+            (BEGIN, END,),
+            f"Span",
+            book,
+            default_currency,
+            sinks=no_of_streams,
+            faucets=0,
+            aggregate=False,
+        )
+
+        ledger.reporter.report_period_impl(
+            (screen, 1),
+            (BEGIN, END,),
+            f"Span",
+            book,
+            default_currency,
+            sinks=0,
+            faucets=no_of_streams,
+            aggregate=False,
+        )
+
+        to_stdout(screen.str().strip())
+        screen.reset()
+
 
 main(sys.argv[1:])
