@@ -7,7 +7,9 @@ Based on accounts and transactions.
 
 ## How to...
 
-Open an account?
+A selection of examples of the events you can record in a ledger.
+
+### Open an account?
 
 ```
 open account 2019-08-01 asset bank.main_account
@@ -23,7 +25,8 @@ with
 end
 ```
 
-Force a balance on an account?
+### Force a balance on an account?
+
 You may set balance on as many accounts as you want using a single `balance`
 record.
 
@@ -33,7 +36,8 @@ balance 2019-08-01
 end
 ```
 
-Record revenues?
+### Record revenues?
+
 A revenue transaction means "I got some money":
 
 ```
@@ -43,7 +47,8 @@ rx 2019-08-01T09:42 Salary
 end
 ```
 
-Record expenses?
+### Record expenses?
+
 An expense transaction means "I spent some money":
 
 ```
@@ -53,7 +58,8 @@ ex 2019-08-01T12:48
 end
 ```
 
-Record transfers between accounts?
+### Record transfers between accounts?
+
 A transfer moves money between your own accounts, and does not change the amount
 of money you have.
 
@@ -64,7 +70,7 @@ tx 2019-08-01T13:37
 end
 ```
 
-Record revenues in the future?
+### Record revenues in the future?
 
 ```
 rx 2022-06-14T12:00 Summer bonus
@@ -75,7 +81,7 @@ with
 end
 ```
 
-Record currency exchanges?
+### Record currency exchanges?
 
 ```
 tx 2022-06-29T12:00
@@ -84,7 +90,8 @@ tx 2022-06-29T12:00
 end
 ```
 
-Record buying stocks?
+### Record buying stocks?
+
 You need to have an equity account opened.
 Every such transactin requires the `shares` tag within the `with` part of a
 record.
@@ -100,7 +107,7 @@ with
 end
 ```
 
-Record dividends?
+### Record dividends?
 
 ```
 dividend 2022-06-29T12:01
@@ -109,7 +116,8 @@ dividend 2022-06-29T12:01
 end
 ```
 
-Record share prices?
+### Record share prices?
+
 You may set prices of as many companies as you want using a single `balance`
 record.
 
