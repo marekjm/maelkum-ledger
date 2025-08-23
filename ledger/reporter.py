@@ -1407,28 +1407,31 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
     ALT_BG = "grey_11"
 
-    p(
-        "   {}   {:7}   {:7}         Share    {:7}          {}   Total return".format(
-            (" " * company_name_length),
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)),
-            "Average",
-            "Market",
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)),
+    def header_footer():
+        p(
+            "   {}   {:7}   {:7}          Share   {:7}           {}   Total return".format(
+                (" " * company_name_length),
+                colored.bg(ALT_BG)
+                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)),
+                "Average",
+                "Market",
+                colored.bg(ALT_BG)
+                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)),
+            )
         )
-    )
-    p(
-        "   {}   {:7}   {:7}         Count    {:7}   Port%  {}    TR$    TR% ".format(
-            (" " * company_name_length),
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)),
-            " Price",
-            "Value",
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)),
+        p(
+            "   {}   {:7}   {:7}          Count   {:7}   Port%   {}    TR$    TR% ".format(
+                (" " * company_name_length),
+                colored.bg(ALT_BG)
+                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)),
+                " Price",
+                "Value",
+                colored.bg(ALT_BG)
+                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)),
+            )
         )
-    )
+
+    header_footer()
 
     for name in sorted(eq_accounts.keys()):
         account = eq_accounts[name]
@@ -1538,7 +1541,6 @@ def report_total_equity(to_out, accounts, book, default_currency):
 
         fmt_share_price_mkt = "{:8.4f}"
         fmt_share_price_avg = "{:8.4f}"
-        fmt_share_count = "{:3.0f}"
         fmt_share_worth = "{:8.2f}"
         fmt_tr_nominal = "{:8.2f}"
         fmt_tr_percent = "{:8.2f}"
@@ -1648,7 +1650,7 @@ def report_total_equity(to_out, accounts, book, default_currency):
                     cb(share_price_diff, ("+" if share_price_diff >= 0 else "")),
                     cb(share_price_diff),
                     star_spacing,
-                    c(COLOR_SHARE_COUNT, f"{shares_held:3.0f}"),
+                    c(COLOR_SHARE_COUNT, f"{shares_held:4.0f}"),
                     c(COLOR_SHARE_WORTH, fmt_share_worth.format(market_value)),
                     c(COLOR_SHARE_WORTH, f"{percent_of_portfolio_value:5.2f}"),
                     colored.bg(ALT_BG) + c(COLOR_SHARE_PRICE, f"{cost_basis:8.2f}"),
@@ -1657,25 +1659,4 @@ def report_total_equity(to_out, accounts, book, default_currency):
                 )
             )
 
-    p(
-        "   {}   {:7}   {:7}         Share    {:7}   Port%  {}   Total return".format(
-            (" " * company_name_length),
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)),
-            "Average",
-            "Market",
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)),
-        )
-    )
-    p(
-        "   {}   {:7}   {:7}         Count    {:7}          {}    TR$    TR% ".format(
-            (" " * company_name_length),
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)),
-            " Price",
-            "Value",
-            colored.bg(ALT_BG)
-            + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)),
-        )
-    )
+    header_footer()
