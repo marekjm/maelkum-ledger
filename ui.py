@@ -345,12 +345,6 @@ def main(args):
             exit(1)
 
         year = int(args[2])
-        BEGIN = datetime.datetime.strptime(
-            f"{year}-01-01T00:00", ledger.constants.TIMESTAMP_FORMAT
-        )
-        END = datetime.datetime.strptime(
-            f"{year+1}-01-01T00:00", ledger.constants.TIMESTAMP_FORMAT
-        ) - datetime.timedelta(milliseconds=1)
 
         no_of_streams = Screen.get_tty_height() - 10
 

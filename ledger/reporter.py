@@ -946,18 +946,14 @@ def report_year(
         f"{year}-01-01T00:00",
         constants.TIMESTAMP_FORMAT,
     )
+
+    # Analyse the FULL year, even if it includes the future (in case current
+    # year is requested). Use the report_this_year() function if you do not want
+    # the future included.
     period_end = datetime.datetime.strptime(
         f"{year}-12-31T23:59",
         constants.TIMESTAMP_FORMAT,
     )
-
-    # Do not analyse the future.
-    now = datetime.datetime.now()
-    if now < period_end:
-        period_end = datetime.datetime.strptime(
-            now.strftime("%Y-%m-%dT23:59"),
-            constants.TIMESTAMP_FORMAT,
-        )
 
     report_period_impl(
         to_out,
