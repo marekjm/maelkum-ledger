@@ -73,9 +73,8 @@ def main(args):
     match args[0]:
         case "--version":
             to_stdout(
-                "maelkum-ledger {} ({})".format(
+                "maelkum-ledger version {}".format(
                     ledger.__version__,
-                    ledger.__commit__,
                 )
             )
             exit(0)
