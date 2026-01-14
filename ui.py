@@ -383,20 +383,23 @@ def main(args):
             exit(1)
 
         begin = args[2]
-        end = args[3] if len(args) > 3 else datetime.datetime.now().strftime(ledger.constants.DAYSTAMP_FORMAT)
+        end = (
+            args[3]
+            if len(args) > 3
+            else datetime.datetime.now().strftime(ledger.constants.DAYSTAMP_FORMAT)
+        )
 
-        BEGIN = datetime.datetime.strptime(
-            begin, ledger.constants.DAYSTAMP_FORMAT
-        )
-        END = datetime.datetime.strptime(
-            end, ledger.constants.DAYSTAMP_FORMAT
-        )
+        BEGIN = datetime.datetime.strptime(begin, ledger.constants.DAYSTAMP_FORMAT)
+        END = datetime.datetime.strptime(end, ledger.constants.DAYSTAMP_FORMAT)
 
         no_of_streams = Screen.get_tty_height() - 10
 
         ledger.reporter.report_period_impl(
             (screen, 0),
-            (BEGIN, END,),
+            (
+                BEGIN,
+                END,
+            ),
             f"Span",
             book,
             default_currency,
@@ -407,7 +410,10 @@ def main(args):
 
         ledger.reporter.report_period_impl(
             (screen, 1),
-            (BEGIN, END,),
+            (
+                BEGIN,
+                END,
+            ),
             f"Span",
             book,
             default_currency,

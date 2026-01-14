@@ -413,11 +413,9 @@ def report_common_impl(
         revenue_faucets.items(), key=lambda each: each[1], reverse=True
     )
 
-    report_max_ts = max(revenues[-1].effective_date(),
-                        expenses[-1].effective_date())
-    report_min_ts = min(revenues[0].effective_date(),
-                        expenses[0].effective_date())
-    report_time_span = (report_max_ts - report_min_ts)
+    report_max_ts = max(revenues[-1].effective_date(), expenses[-1].effective_date())
+    report_min_ts = min(revenues[0].effective_date(), expenses[0].effective_date())
+    report_time_span = report_max_ts - report_min_ts
     is_all_time_report = report_time_span.days > 367
 
     sink_faucet_value_len = 0
@@ -1410,22 +1408,30 @@ def report_total_equity(to_out, accounts, book, default_currency):
             "   {}   {:7}   {:7}          Share   {:7}           {}   Total return".format(
                 (" " * company_name_length),
                 colored.bg(ALT_BG)
-                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)),
+                + util.colors.colorise(
+                    util.colors.COLOR_SHARE_PRICE, " Market".ljust(8)
+                ),
                 "Average",
                 "Market",
                 colored.bg(ALT_BG)
-                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)),
+                + util.colors.colorise(
+                    util.colors.COLOR_SHARE_PRICE, "  Cost".ljust(8)
+                ),
             )
         )
         p(
             "   {}   {:7}   {:7}          Count   {:7}   Port%   {}    TR$    TR% ".format(
                 (" " * company_name_length),
                 colored.bg(ALT_BG)
-                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)),
+                + util.colors.colorise(
+                    util.colors.COLOR_SHARE_PRICE, " Price".ljust(8)
+                ),
                 " Price",
                 "Value",
                 colored.bg(ALT_BG)
-                + util.colors.colorise(util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)),
+                + util.colors.colorise(
+                    util.colors.COLOR_SHARE_PRICE, "  Basis".ljust(8)
+                ),
             )
         )
 
