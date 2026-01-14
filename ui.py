@@ -214,7 +214,7 @@ def main(args):
         to_stdout(screen.str())
         screen.reset()
 
-    if REPORT_TYPE == "overyear":
+    elif REPORT_TYPE == "overyear":
         # Yearly report.
         # A high-level overview of income and expenses; with per-month and
         # whole-year breakdowns.
@@ -284,7 +284,7 @@ def main(args):
         to_stdout(screen.str().strip())
         screen.reset()
 
-    if REPORT_TYPE == "month":
+    elif REPORT_TYPE == "month":
         # Detailed report for a single month.
         Screen = ledger.util.screen.Screen
         screen = Screen(Screen.get_tty_width(), 2)
@@ -335,7 +335,7 @@ def main(args):
         to_stdout(screen.str().strip())
         screen.reset()
 
-    if REPORT_TYPE == "year":
+    elif REPORT_TYPE == "year":
         # Detailed report for a single year.
         Screen = ledger.util.screen.Screen
         screen = Screen(Screen.get_tty_width(), 2)
@@ -372,7 +372,7 @@ def main(args):
         to_stdout(screen.str().strip())
         screen.reset()
 
-    if REPORT_TYPE == "span":
+    elif REPORT_TYPE == "span":
         # Detailed report for a single year.
         Screen = ledger.util.screen.Screen
         screen = Screen(Screen.get_tty_width(), 2)
@@ -418,6 +418,9 @@ def main(args):
 
         to_stdout(screen.str().strip())
         screen.reset()
+
+    else:
+        print(f"error: unknown report type: {REPORT_TYPE}")
 
 
 main(sys.argv[1:])
