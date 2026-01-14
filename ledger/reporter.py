@@ -408,15 +408,17 @@ def report_common_impl(
             )
         )
 
-    is_all_time_report = (
-        max(revenues[-1].timestamp, revenues[-1].timestamp)
-        - min(revenues[0].timestamp, revenues[0].timestamp)
-    ).days > 367
-
     expense_sinks_sorted = sorted(expense_sinks.items(), key=lambda each: each[1])
     revenue_faucets_sorted = sorted(
         revenue_faucets.items(), key=lambda each: each[1], reverse=True
     )
+
+    report_max_ts = max(revenues[-1].effective_date(),
+                        expenses[-1].effective_date())
+    report_min_ts = min(revenues[0].effective_date(),
+                        expenses[0].effective_date())
+    report_time_span = (report_max_ts - report_min_ts)
+    is_all_time_report = report_time_span.days > 367
 
     sink_faucet_value_len = 0
     if expense_sinks_sorted:
@@ -515,10 +517,10 @@ def report_common_impl(
                 )
             )
 
-        extra_sinks = 3 + (2 if monthly_breakdown else 0)
+        extra_sinks = 7 + (5 if monthly_breakdown else 0)
 
         if is_all_time_report:
-            extra_sinks += 36
+            extra_sinks += 27
 
         if sinks is not None:
             extra_sinks = max(0, sinks - 3)
@@ -659,7 +661,7 @@ def report_common_impl(
                 )
             )
 
-        extra_faucets = 3 + (8 if monthly_breakdown else 0)
+        extra_faucets = 7 + (5 if monthly_breakdown else 0)
 
         if is_all_time_report:
             extra_faucets += 30
